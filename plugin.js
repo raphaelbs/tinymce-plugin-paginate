@@ -15,11 +15,13 @@ require('./src/main');
 
 /**
  * @constructor
+ * @param {Node} _document - Document element from DOM
+ * @return void
  */
-function Display(_document){
+function Display(_document) {
   /**
-  * @property {Element}
-  */
+   * @property {Element}
+   */
   this._testDPIElement = null;
   this.document = _document;
   this._setScreenDPI();
@@ -30,17 +32,21 @@ function Display(_document){
  * @method
  * @private
  */
-var _createTestDPIElement = function(){
+var _createTestDPIElement = function () {
+  if ($('#dpi-test')[0]) {
+    this._testDPIElement = $('#dpi-test');
+    return;
+  }
   this._testDPIElement = $('<div/>')
-  .attr('id','dpi-test')
-  .css({
-    position: 'absolute',
-    top: '-100%',
-    left: '-100%',
-    height: '1in',
-    width: '1in',
-    border: 'red 1px solid'
-  });
+    .attr('id', 'dpi-test')
+    .css({
+      position: 'absolute',
+      top: '-100%',
+      left: '-100%',
+      height: '1in',
+      width: '1in',
+      border: 'red 1px solid'
+    });
   $('body').prepend(this._testDPIElement);
 };
 
@@ -48,7 +54,7 @@ var _createTestDPIElement = function(){
  * @method
  * @return the screen DPI
  */
-Display.prototype._setScreenDPI = function(){
+Display.prototype._setScreenDPI = function () {
   _createTestDPIElement.call(this);
 
   if (this._testDPIElement[0].offsetWidth !== this._testDPIElement[0].offsetHeight)
@@ -59,16 +65,13 @@ Display.prototype._setScreenDPI = function(){
 
 /**
  * @method
- * @param DOMDocument _document
- * @param String unit
- *
+ * @param {String} unit - unit of height
  * @return `_document` body height in `unit` unit
-
  */
-Display.prototype.height = function(unit){
+Display.prototype.height = function (unit) {
   if (!unit) throw new Error('Explicit unit for getting document height is required');
 
-  var pixels = $('body',this.document).height();
+  var pixels = $('body', this.document).height();
 
   if (unit === 'px') return pixels;
   if (unit === 'mm') return this.px2mm(pixels);
@@ -86,7 +89,7 @@ Display.prototype.height = function(unit){
  * @param {Number} px   The amount of pixels to Converts
  * @return {Number}   The amount of milimeters converted
  */
-Display.prototype.px2mm = function(px){
+Display.prototype.px2mm = function (px) {
   if (!this.screenDPI)
     throw new Error('Screen DPI is not defined. Is Display object instantied ?');
   return px * 25.4 / this.screenDPI;
@@ -104,14 +107,13 @@ Display.prototype.px2mm = function(px){
  * @param {Number} mm   The amount of milimeters to converts
  * @return {Number} px  The amount of pixels converted
  */
-Display.prototype.mm2px = function(mm){
+Display.prototype.mm2px = function (mm) {
   if (!this.screenDPI)
     throw new Error('Screen DPI is not defined. Is Display object instantied ?');
   return mm * this.screenDPI / 25.4;
 };
 
 module.exports = Display;
-
 },{}],3:[function(require,module,exports){
 /**
  * Page class module
@@ -120,16 +122,17 @@ module.exports = Display;
 
 'use strict';
 
+var Display = require('./Display');
 var supportedFormats = require('../utils/page-formats');
 
 
-var InvalidOrientationLabelError = (function(){
+var InvalidOrientationLabelError = (function () {
   /**
    * Must be thrown when trying to orientate a page with an invalid orientation label
    * @constructor
    * @param {string} label The invalid orientation label
    */
-  function InvalidOrientationLabelError(label){
+  function InvalidOrientationLabelError(label) {
     this.name = 'InvalidOrientationLabelError';
     this.message = label + ' is an invalid orientation label !';
     this.stack = (new Error()).stack;
@@ -145,10 +148,26 @@ var InvalidOrientationLabelError = (function(){
  * @param {Sring} orientation An orientation in `('portrait','landscape')`.
  * @param {Number} rank The page rank `(1..n)`
  * @param {HTMLDivElement} wrappedPageDiv The `div[data-paginator]` HTMLDivElement
+ * @param {Editor} ed - The tinymce editor object
  */
-function Page(formatLabel, orientation, rank, wrappedPageDiv){
+function Page(formatLabel, orientation, rank, wrappedPageDiv, ed) {
   this._content = null;
   this.rank = null;
+
+  /**
+   * Current editor
+   * @property {Editor}
+   */
+  this._editor = ed;
+
+  /**
+   * The Display to manage screen and dimensions
+   * @property {Display}
+   * @private
+   */
+  this._display = new Display(ed.getDoc());
+
+  _setPaddings.call(this);
 
   this.format(formatLabel);
   this.orientate(orientation);
@@ -160,19 +179,201 @@ function Page(formatLabel, orientation, rank, wrappedPageDiv){
   if (wrappedPageDiv !== undefined || wrappedPageDiv !== null) {
     this.content(wrappedPageDiv);
   }
+
+  if (rank) this.setHeadersAndFooters();
 }
+
+/**
+ * Set of the constant values representing the `margins` of a page.
+ * @type {integer}
+ */
+Page.prototype.MARGIN_Y = 16;
 
 /**
  * Getter-setter for page div content Element
  * @method
- * @param {DOMElement} The content to fill the page
+ * @param {DOMElement} wrappedPageDiv The content to fill the page
  * @return {DOMElement|void} The page div Element to return in getter usage
  */
-Page.prototype.content = function(wrappedPageDiv){
-  if (wrappedPageDiv === undefined) {
+Page.prototype.content = function (wrappedPageDiv) {
+  if (!wrappedPageDiv) {
     return this._content;
   } else {
     this._content = wrappedPageDiv;
+  }
+};
+
+/**
+ * Get only inner content excluding headers and footers
+ * @method
+ * @return {DOMElement|void} The page div Element to return in getter usage
+ */
+Page.prototype.innerContent = function () {
+  if (this._content) {
+    return $(this._content).children(':not(.pageFooter):not(.pageHeader)');
+  }
+};
+
+/**
+ * Set headers and footers according to settings
+ * @method
+ * @param {Boolean} firstHeaderAndFooter mannual control over the first initilization
+ * @return void
+ */
+Page.prototype.setHeadersAndFooters = function () {
+  var that = this;
+  var configs = that._editor.settings.paginate_configs();
+  if (!configs) return;
+
+  var spacingsWithHeaders = that.spacingsWithHeaders;
+  var spacingsWithoutHeaders = that.spacingsWithoutHeaders;
+  var cm1 = Math.ceil(Number(this._display.mm2px(10)) - 1); // -1 is the dirty fix mentionned in the todo tag
+
+  // remove header and footer
+  var removed = $(that._content).find('.pageHeader,.pageFooter').remove();
+  // default function to cancel drag on header and footer
+  function cancelDrag(e) { e.preventDefault(); return false; }
+
+  // Define padding like margin is enabled
+  // Headers and footers Disabled (Margins)
+  if (configs.margemSuperior)
+    spacingsWithoutHeaders.page.pTop = that._display.mm2px(configs.margemSuperior * 10);
+  if (configs.margemInferior)
+    spacingsWithoutHeaders.page.pBottom = that._display.mm2px(configs.margemInferior * 10);
+
+  // Spacing using Margins
+  var spacing = {
+    top: spacingsWithoutHeaders.page.pTop,
+    right: spacingsWithoutHeaders.page.pRight,
+    bottom: spacingsWithoutHeaders.page.pBottom,
+    left: spacingsWithoutHeaders.page.pLeft,
+    minHeight: that.getInnerHeight()
+  };
+
+  var headerAndFooterEnabled = configs.possuiCabecalhoRodape || (removed.length > 0 && configs.headerHtml && configs.possuiCabecalhoRodape !== false);
+
+  // Header, with margins enabled
+  var header = document.createElement('div');
+  header.className = 'pageHeader';
+  header.contentEditable = false;
+  header.onmousedown = cancelDrag;
+  header.style.width = 'calc(100% - ' + spacingsWithHeaders.page.sumWidth() + 'px)';
+  header.style.height = (spacing.top - Math.ceil(cm1 / 2)) + 'px';
+  header.style.marginRight = spacingsWithHeaders.header.mRight + 'px';
+  header.style.marginLeft = spacingsWithHeaders.header.mLeft + 'px';
+  disableSelection(header);
+
+  // Footer, with margins enabled
+  var footer = document.createElement('div');
+  footer.className = 'pageFooter';
+  footer.contentEditable = false;
+  footer.onmousedown = cancelDrag;
+  footer.style.width = 'calc(100% - ' + spacingsWithHeaders.page.sumWidth() + 'px)';
+  footer.style.height = (spacing.bottom - Math.ceil(cm1 / 2)) + 'px';
+  footer.style.marginRight = spacingsWithHeaders.footer.mRight + 'px';
+  footer.style.marginLeft = spacingsWithHeaders.footer.mLeft + 'px';
+  disableSelection(footer);
+
+  // Headers and footers Enabled
+  if (headerAndFooterEnabled) {
+    // Header, with headers and footers enabled
+    header.classList += ' large';
+    header.style.height = spacingsWithHeaders.header.height + 'px';
+    header.style.paddingTop = spacingsWithHeaders.header.pTop + 'px';
+    header.style.paddingBottom = spacingsWithHeaders.header.pBottom + 'px';
+
+    // Footer, with headers and footers enabled
+    footer.classList += ' large';
+    footer.style.height = spacingsWithHeaders.footer.height + 'px';
+    footer.style.paddingTop = spacingsWithHeaders.footer.pTop + 'px';
+    footer.style.paddingBottom = spacingsWithHeaders.footer.pBottom + 'px';
+
+    // spacing, with headers and footers enabled
+    spacing.top = spacingsWithHeaders.page.pTop;
+    spacing.right = spacingsWithHeaders.page.pRight;
+    spacing.bottom = spacingsWithHeaders.page.pBottom;
+    spacing.left = spacingsWithHeaders.page.pLeft;
+    spacing.height = that.getInnerHeight();
+  }
+
+
+  insertHeaderData(header, headerAndFooterEnabled);
+  insertFooterData(footer, headerAndFooterEnabled);
+
+  $(that._content)
+    .css({
+      'padding-top': spacing.top + 'px ',
+      'padding-right': spacing.right + 'px ',
+      'padding-bottom': spacing.bottom + 'px ',
+      'padding-left': spacing.left + 'px',
+      'min-height': spacing.minHeight
+    })
+    .prepend(header)
+    .append(footer);
+
+  /**
+   * Disable mouse selection for header and footer.
+   * @param {HTMLElement} el should be header and footer elements
+   */
+  function disableSelection(el) {
+    $(el).css({
+      '-webkit-touch-callout': 'none', /* iOS Safari */
+      '-webkit-user-select': 'none', /* Safari */
+      '-khtml-user-select': 'none', /* Konqueror HTML */
+      '-moz-user-select': 'none', /* Firefox */
+      '-ms-user-select': 'none', /* Internet Explorer/Edge */
+      'user-select': 'none', /* Non-prefixed version, currently
+                                                        supported by Chrome and Opera */
+    });
+  }
+
+  /**
+   * Insert HTML content into header DOM element.
+   * @param {HTMLElement} header virtual header DOM element
+   */
+  function insertHeaderData(header, headerAndFooterEnabled) {
+    var _configs = that._editor.settings.paginate_configs();
+    if (_configs && _configs.headerHtml) {
+      if (typeof _configs.headerHtml !== 'function') throw Error('[tinymce~paginate] configuration "paginate_configs.headerHtml" should be [function] but is [' + typeof _configs.headerHtml + ']');
+      _configs.headerHtml(header, headerAndFooterEnabled);
+    }
+  }
+  /**
+   * Insert HTML content into header DOM element.
+   * @param {HTMLElement} footer virtual header DOM element
+   */
+  function insertFooterData(footer, headerAndFooterEnabled) {
+    var _configs = that._editor.settings.paginate_configs();
+    if (_configs && _configs.footerHtml) {
+      if (typeof _configs.footerHtml !== 'function') throw Error('[tinymce~paginate] configuration "paginate_configs.footerHtml" should be [function] but is [' + typeof _configs.footerHtml + ']');
+      _configs.footerHtml(footer, headerAndFooterEnabled, that.rank);
+    }
+  }
+};
+
+/**
+ * Returns wheter this page content is empty or not
+ * @method
+ * @return {boolean}
+ */
+Page.prototype.contentIsEmpty = function () {
+  var innerContent = this.innerContent();
+  var content = 0;
+  if (innerContent) {
+    content += innerContent.text().replace(/\r?\n|\r/igm).replace(/^\s*$/igm, '').length;
+  }
+  return innerContent.length === 0;
+};
+
+/**
+ * Clean all content from this page
+ * @method
+ * @return {void}
+ */
+Page.prototype.clean = function () {
+  if (this._content) {
+    var headersAndFooters = $(this._content).find('.pageFooter,.pageHeader').detach();
+    $(this._content).html(headersAndFooters);
   }
 };
 
@@ -182,8 +383,14 @@ Page.prototype.content = function(wrappedPageDiv){
  * @param {Array}<Node> nodes The nodes to insert.
  * @returns {Page} `this` page instance.
  */
-Page.prototype.append = function(nodes){
-  $(nodes).appendTo(this.content());
+Page.prototype.append = function (nodes) {
+  var configs = this._editor.settings.paginate_configs();
+
+  // Insert after .pageHeader
+  if (configs && configs.possuiCabecalhoRodape) $(nodes).insertBefore($(this.content()).find(".pageFooter"));
+  // Insert at firstChild
+  else $(nodes).appendTo(this.content());
+
   return this;
 };
 
@@ -193,20 +400,52 @@ Page.prototype.append = function(nodes){
  * @param {Array}<Node> nodes The nodes to insert.
  * @returns {Page} `this` page instance.
  */
-Page.prototype.prepend = function(nodes){
-  $(nodes).prependTo(this.content());
+Page.prototype.prepend = function (nodes) {
+  var configs = this._editor.settings.paginate_configs();
+
+  // Insert after .pageHeader
+  if (configs && configs.possuiCabecalhoRodape) $(nodes).insertAfter($(this.content()).find(".pageHeader"));
+  // Insert at firstChild
+  else $(nodes).prependTo(this.content());
+
   return this;
+};
+
+/**
+ * Get the first element of the page considering header.
+ * @method
+ * @returns {Node} `this` page instance.
+ */
+Page.prototype.getFirstElement = function () {
+  var configs = this._editor.settings.paginate_configs();
+  var children = $(this.content()).contents();
+
+  // Get the first block, considering header
+  return (configs && configs.possuiCabecalhoRodape) ? children[1] : children[0];
+};
+
+/**
+ * Get the last element of the page considering footer.
+ * @method
+ * @returns {Node} `this` page instance.
+ */
+Page.prototype.getLastElement = function () {
+  var configs = this._editor.settings.paginate_configs();
+  var children = $(this.content()).contents();
+
+  // Get the last block, considering footer
+  return (configs && configs.possuiCabecalhoRodape) ? children[children.length - 2] : children[children.length - 1];
 };
 
 /**
  * getter-setter of the orientation
  * @method
- * @param <string> orientation
+ * @param {string} orientation
  * @return void
  */
-Page.prototype.orientate = function(orientation){
-  var inValidType = (typeof(orientation) !== 'string');
-  var inValidLabel = (orientation.toLowerCase() !== 'portrait' && orientation.toLowerCase() !== 'paysage') ;
+Page.prototype.orientate = function (orientation) {
+  var inValidType = (typeof (orientation) !== 'string');
+  var inValidLabel = (orientation.toLowerCase() !== 'portrait' && orientation.toLowerCase() !== 'paysage');
 
   if (inValidType || inValidLabel)
     throw new InvalidOrientationLabelError(orientation);
@@ -230,16 +469,58 @@ Page.prototype.orientate = function(orientation){
  * - the defined format for the page if used as getter,
  * - or the page instance if used as setter (to permit chaining)
  */
-Page.prototype.format = function(label){
+Page.prototype.format = function (label) {
   if (label !== undefined) {
     if (!supportedFormats[label])
-    throw new Error('Format '+ label +' is not supported yet.');
+      throw new Error('Format ' + label + ' is not supported yet.');
 
     this._format = supportedFormats[label];
     return this;
-  }
+  } else return this._format;
+};
 
-  else return this._format;
+/**
+ * Compute the page default height in pixels.
+ * @method
+ * @return {Number} The resulted default height in pixels.
+ */
+Page.prototype.getDefaultHeight = function () {
+  var defaultHeightInPx = Number(this._display.mm2px(this.height));
+  return Math.ceil(defaultHeightInPx - 1); // -1 is the dirty fix mentionned in the todo tag
+};
+
+/**
+ * Compute the page default width in pixels.
+ * @method
+ * @return {Number} The resulted width in pixels.
+ */
+Page.prototype.getDefaultWidth = function () {
+  var defaultWidthInPx = Number(this._display.mm2px(this.width));
+  return Math.ceil(defaultWidthInPx - 1); // -1 is the dirty fix mentionned in the todo tag
+};
+
+/**
+ * Compute the page inner height in pixels.
+ * @method
+ * @return {Number} The resulted inner height in pixels.
+ */
+Page.prototype.getInnerHeight = function () {
+  var configs = this._editor.settings.paginate_configs(),
+    paddings = (configs && configs.possuiCabecalhoRodape) ?
+      this.spacingsWithHeaders.page.sumHeight() : this.spacingsWithoutHeaders.page.sumHeight();
+  return this.getDefaultHeight() - paddings;
+};
+
+/**
+ * Compute the page inner width in pixels.
+ * @method
+ * @return {Number} The resulted inner width in pixels.
+ */
+Page.prototype.getInnerWidth = function () {
+  var configs = this._editor.settings.paginate_configs(),
+    paddings = (configs && configs.possuiCabecalhoRodape) ?
+      this.spacingsWithHeaders.page.sumWidth() : this.spacingsWithoutHeaders.page.sumWidth();
+  return this.getDefaultWidth() - paddings;
 };
 
 /**
@@ -247,15 +528,100 @@ Page.prototype.format = function(label){
  * @method
  * @returns {Number} The resulted height in pixels.
  */
-Page.prototype.getContentHeight = function() {
-  var contentHeight = $(this.content()).css('height');
-  var inPixels = contentHeight.split('px').join('');
+Page.prototype.getRealHeight = function () {
+  var height = $(this.content()).css('height');
+  var inPixels = height.split('px').join('');
   return Number(inPixels);
 };
 
-module.exports = Page;
+/**
+ * Compute the available height of the page's content, considering bottom padding (for absolute footer).
+ * @method
+ * @returns {Number} The resulted height in pixels.
+ */
+Page.prototype.getAvailableHeight = function () {
+  var pageDefaultHeight = this.getDefaultHeight(),
+    contentHeight = this.getContentHeight(),
+    availableHeight = pageDefaultHeight - contentHeight;
+  return availableHeight;
+};
 
-},{"../utils/page-formats":8}],4:[function(require,module,exports){
+/**
+ * Compute the page content height.
+ * @method
+ * @returns {Number} The resulted height in pixels.
+ */
+Page.prototype.getContentHeight = function () {
+  var lastElement = this.getLastElement(),
+    lastElementObj = {
+      offsetTop: lastElement.offsetTop,
+      height: Number($(lastElement).css('height').split('px').join('')),
+      margin: Number($(lastElement).css('margin-bottom').split('px').join('')),
+      border: Number($(lastElement).css('border-bottom-width').split('px').join('')),
+      sum: function () { return this.offsetTop + this.height + this.border + this.margin; }
+    },
+    pageBottomPadding = Number($(this.content()).css('padding-bottom').split('px').join('')),
+    contentHeight = pageBottomPadding + lastElementObj.sum();
+  return contentHeight;
+};
+
+/**
+ * Set the default paddings of a page
+ * @method
+ * @private
+ * @return void
+ */
+var _setPaddings = function () {
+  var that = this;
+  var cm1 = Math.ceil(Number(this._display.mm2px(10)) - 1); // -1 is the dirty fix mentionned in the todo tag
+
+  // spacings with headers
+  this.spacingsWithHeaders = {
+    page: {
+      pTop: cm1 * 5, // will match the header outer height
+      pRight: cm1,
+      pBottom: cm1 * 3, // will match the footer outer height
+      pLeft: cm1,
+      sumHeight: function () { return this.pTop + this.pBottom; },
+      sumWidth: function () { return this.pRight + this.pLeft; }
+    }
+  };
+  // header
+  this.spacingsWithHeaders.header = {
+    pTop: cm1,
+    mRight: this.spacingsWithHeaders.page.pRight,
+    pBottom: cm1,
+    mLeft: this.spacingsWithHeaders.page.pLeft,
+    mBottom: Math.ceil(cm1 / 2),
+    sumHeight: function () { return this.pTop + this.pBottom + this.mBottom + 1; } // 1px = border
+  };
+  this.spacingsWithHeaders.header.height = this.spacingsWithHeaders.page.pTop - this.spacingsWithHeaders.header.sumHeight();
+  // footer
+  this.spacingsWithHeaders.footer = {
+    pTop: Math.ceil(cm1 / 2),
+    mRight: this.spacingsWithHeaders.page.pRight,
+    pBottom: Math.ceil(cm1 / 2),
+    mLeft: this.spacingsWithHeaders.page.pLeft,
+    mTop: Math.ceil(cm1 / 2),
+    sumHeight: function () { return this.pTop + this.pBottom + this.mTop + 1; } // 1px = border
+  };
+  this.spacingsWithHeaders.footer.height = this.spacingsWithHeaders.page.pBottom - this.spacingsWithHeaders.footer.sumHeight();
+
+  // spacings without headers
+  this.spacingsWithoutHeaders = {
+    page: {
+      pTop: cm1 * 3,
+      pRight: cm1,
+      pBottom: cm1 * 2,
+      pLeft: cm1,
+      sumHeight: function () { return this.pTop + this.pBottom; },
+      sumWidth: function () { return this.pRight + this.pLeft; }
+    }
+  };
+};
+
+module.exports = Page;
+},{"../utils/page-formats":8,"./Display":2}],4:[function(require,module,exports){
 /**
  * Paginator class module
  * @module classes/Paginator
@@ -280,20 +646,14 @@ var InvalidCursorPosition = errors.InvalidCursorPosition;
  * @constructor
  * @param {string} pageFormatLabel The label of the paper format for all pages. For example, 'A4'
  * @param {string} pageOrientation The label of the orientation for all pages. May be 'portait' or 'landscape'
- * @param {DOMDocument} doc The document given by editor.getDoc() of the tinymce API
+ * @param {Object} ed The editor object given by the tinymce API
  *
  * @example
  paginator = new Paginator('A4','portait', editor.getDoc());
  *
  * @see utils/page-formats
  */
-function Paginator(pageFormatLabel, pageOrientation, ed){
-
-  /**
-   * The current page
-   * @property {Page}
-   */
-  this._currentPage = null;
+function Paginator(pageFormatLabel, pageOrientation, ed) {
 
   /**
    * The list of pages
@@ -306,6 +666,7 @@ function Paginator(pageFormatLabel, pageOrientation, ed){
    * @property {Editor}
    */
   this._editor = ed;
+  if (!this._editor.settings.paginate_configs) this._editor.settings.paginate_configs = function () { return null; };
 
   /**
    * The DOMDocument given in the constructor
@@ -324,7 +685,7 @@ function Paginator(pageFormatLabel, pageOrientation, ed){
    * @property {Page}
    * @private
    */
-  this._defaultPage = new Page(pageFormatLabel, pageOrientation);
+  this._defaultPage = new Page(pageFormatLabel, pageOrientation, null, null, ed);
   /**
    * The body element of the full document
    * @property {Element}
@@ -334,9 +695,8 @@ function Paginator(pageFormatLabel, pageOrientation, ed){
 
 }
 
-Paginator.prototype.destroy = function(){
+Paginator.prototype.destroy = function () {
   this._pages = null;
-  this._currentPage = null;
   this._editor = null;
   this._document = null;
   this._display = null;
@@ -350,35 +710,136 @@ Paginator.prototype.destroy = function(){
  * @property {string} ORIGIN equals 'ORIGIN'
  * @property {string} END equals 'END'
  */
-Paginator.prototype.CURSOR_POSITION = { ORIGIN:'ORIGIN', END: 'END' };
+Paginator.prototype.CURSOR_POSITION = { ORIGIN: 'ORIGIN', END: 'END' };
 
 /**
  * Initialize the paginator. The editor and its content has to be loaded before initialize the paginator
  * @method
  * @return void
  */
-Paginator.prototype.init = function(){
-  function findPageWrappers(){
-    return $('div[data-paginator-page-rank]',that._body);
-  }
+Paginator.prototype.init = function () {
   var that = this;
+  that._previousNodeOffsetTop = 0;
+
+  // load or update pages
+  that.initPages();
+
+  // set document height and width based on page size
+  $(that._document.body).css('min-width', that._defaultPage.getDefaultWidth());
+  if (that._editor.settings.paginate_set_default_height)
+    $(that._editor.iframeElement).css('height', that._defaultPage.getDefaultHeight() + this._defaultPage.MARGIN_Y * 4);
+
+  // save initial content
+  that.setInitialSnapshot();
+
+  // remove all previous undos
+  that._editor.undoManager.clear();
+};
+
+/**
+ * Create new pages for paginator.
+ * @method
+ * @return {undefined}
+ */
+Paginator.prototype.initPages = function () {
+  var that = this;
+
+  function findPageWrappers() { return $('div[data-paginator-page-rank]', that._body); }
 
   // search the paginator page wrappers
   var wrappedPages = findPageWrappers();
-  var wrapper = _createEmptyDivWrapper.call(this,1);
+
+  that._pages = [];
 
   // wrap unwrapped content
-  if (!wrappedPages.length){
-    $(this._body).wrapInner(wrapper);
-    this._editor.save();
-    wrappedPages = findPageWrappers();
+  if (!wrappedPages.length) {
+    var inner = $(that._body).find("p").detach();
+    _createNextPage.call(this, inner);
+  } else {
+    $.each(wrappedPages, function (i, el) {
+      var page = new Page(that._defaultPage.format().label, that._defaultPage.orientation, i + 1, el, that._editor);
+      that._pages.push(page);
+    });
   }
+};
 
-  this._pages = [];
-  $.each(wrappedPages,function(i,el){
-    that._pages.push(new Page(that._defaultPage.format().label, that._defaultPage.orientation, i+1, el));
+/**
+ * Load or create new pages for paginator.
+ * @method
+ * @return {undefined}
+ */
+Paginator.prototype.updatePages = function () {
+  var _self_paginator = this,
+    _tinymce_pages = _self_paginator._body.tinymce.children;
+
+  // replace _self_paginator._pages[].content with _body.tinymce.children[]
+  for (var i = 0; i < _tinymce_pages.length; i++) {
+    try {
+      var cp = _self_paginator.getPage(i + 1);
+      cp.content(_tinymce_pages[i]);
+    } catch (e) {
+      // creates page if needed
+      _createNexPageFromRank.call(_self_paginator, _tinymce_pages[i], i + 1);
+    }
+  }
+  // remove pages
+  _self_paginator._pages.splice(_tinymce_pages.length);
+
+  _self_paginator.watchPage();
+};
+
+/**
+ * Set an initial snapshot of the content. Should be called in #init()
+ * @method
+ * @return {void}
+ */
+Paginator.prototype.setInitialSnapshot = function () {
+  this._initial_snapshot = this.currentContent();
+};
+
+/**
+ * Check if the initial_snapshot has changed.
+ * @method
+ * @return {boolean} true if it's dirty
+ */
+Paginator.prototype.isDirty = function () {
+  return this._initial_snapshot != this.currentContent();
+};
+
+/**
+ * Returns if the paginator is empty
+ * @method
+ * @return {boolean} is empty
+ */
+Paginator.prototype.isEmpty = function () {
+  var content = '';
+  $.each(this.getPages(), function (i, el) { content += el.content().innerText; });
+  return !content.replace(/\r?\n|\r/igm, '');
+};
+
+/**
+ * Returns if the paginators content is empty
+ * @method
+ * @return {boolean} is empty
+ */
+Paginator.prototype.contentIsEmpty = function () {
+  var isEmpty = true;
+  $.each(this.getPages(), function (i, page) { isEmpty = page.contentIsEmpty(); });
+  return isEmpty;
+};
+
+/**
+ * Returns the current content.
+ * @method
+ * @return {string} pages content
+ */
+Paginator.prototype.currentContent = function () {
+  var content = '';
+  $.each(this.getPages(), function (i, el) {
+    el = el.innerContent().text();
+    if (el) content += el;
   });
-
+  return content;
 };
 
 /**
@@ -386,8 +847,28 @@ Paginator.prototype.init = function(){
  * @method
  * @return {Page} the current page loaded in editor
  */
-Paginator.prototype.getCurrentPage = function(){
-  return this._currentPage;
+Paginator.prototype.getCurrentPage = function () {
+  return this.getFocusedPage();
+};
+
+/**
+ * Get the focused page
+ * @method
+ * @return {Page} the focused page loaded in editor
+ */
+Paginator.prototype.getFocusedPage = function () {
+  var focusedPage, focusedDiv;
+
+  try {
+    var pageRank;
+    focusedDiv = _getFocusedPageDiv.call(this);
+    pageRank = $(focusedDiv).attr('data-paginator-page-rank');
+    focusedPage = this.getPage(pageRank);
+
+    return focusedPage;
+  } catch (err) {
+    return null;
+  }
 };
 
 /**
@@ -398,22 +879,22 @@ Paginator.prototype.getCurrentPage = function(){
  * @throws {Error}
  * @throws {InvalidPageRankError}
  */
-Paginator.prototype.getPage = function(rank){
-  try{
+Paginator.prototype.getPage = function (rank) {
+  try {
     rank = Number(rank);
-  } catch(err){
+  } catch (err) {
     throw new InvalidPageRankError(rank);
   }
   if (!this._pages.length)
     throw new Error('Paginator pages length in null. Can\'t iterate on it.');
 
   var ret;
-  var isLower = rank-1 < 0;
-  var isGreater = rank-1 > this._pages.length;
+  var isLower = rank - 1 < 0;
+  var isGreater = rank - 1 > this._pages.length;
 
   if (isLower || isGreater) throw new InvalidPageRankError(rank);
   else {
-    $.each(this._pages,function(i,page){
+    $.each(this._pages, function (i, page) {
       if (page.rank === rank) ret = page;
     });
     return ret;
@@ -425,7 +906,7 @@ Paginator.prototype.getPage = function(rank){
  * @method
  * @return {Array<Page>} all paginator pages
  */
-Paginator.prototype.getPages = function(){
+Paginator.prototype.getPages = function () {
   return this._pages;
 };
 
@@ -434,10 +915,10 @@ Paginator.prototype.getPages = function(){
  * @method
  * @return {Page} The previous page
  */
-Paginator.prototype.getPrevious = function(){
+Paginator.prototype.getPrevious = function () {
   try {
-    return this.getPage(this.getCurrentPage().rank-1);
-  } catch(err) {
+    return this.getPage(this.getCurrentPage().rank - 1);
+  } catch (err) {
     return null;
   }
 };
@@ -447,10 +928,10 @@ Paginator.prototype.getPrevious = function(){
  * @method
  * @return {Page} The next page
  */
-Paginator.prototype.getNext = function(){
+Paginator.prototype.getNext = function () {
   try {
-    return this.getPage(this.getCurrentPage().rank+1);
-  } catch(err) {
+    return this.getPage(this.getCurrentPage().rank + 1);
+  } catch (err) {
     return null;
   }
 };
@@ -462,7 +943,7 @@ Paginator.prototype.getNext = function(){
  * @param {string} [cursorPosition] - The requested cursor  position to set after navigating to
  * @return void
  */
-Paginator.prototype.gotoPage = function(toPage,cursorPosition){
+Paginator.prototype.gotoPage = function (toPage, cursorPosition) {
 
   /**
    * Set cursor location to the bottom of the destination page
@@ -470,7 +951,7 @@ Paginator.prototype.gotoPage = function(toPage,cursorPosition){
    * @inner
    * @return void
    */
-  function focusToBottom(){
+  function focusToBottom() {
 
     /**
      * Get all text nodes from a given node
@@ -480,15 +961,15 @@ Paginator.prototype.gotoPage = function(toPage,cursorPosition){
      * @param {number} nodeType The number matching the searched node type
      * @param {array} result The result passed for recursive iteration
      */
-    function getTextNodes(node, nodeType, result){
+    function getTextNodes(node, nodeType, result) {
       var children = node.childNodes;
       nodeType = nodeType ? nodeType : 3;
       result = !result ? [] : result;
       if (node.nodeType === nodeType) {
-          result.push(node);
+        result.push(node);
       }
       if (children) {
-        for (var i=0; i<children.length; i++) {
+        for (var i = 0; i < children.length; i++) {
           result = getTextNodes(children[i], nodeType, result);
         }
       }
@@ -504,9 +985,9 @@ Paginator.prototype.gotoPage = function(toPage,cursorPosition){
       lastChild = content.lastChild;
     }
     if (lastChild) {
-      textNodes = getTextNodes(lastChild) ;
+      textNodes = getTextNodes(lastChild);
       if (textNodes.length) {
-        lastNode = textNodes[textNodes.length-1];
+        lastNode = textNodes[textNodes.length - 1];
         locationOffset = lastNode.textContent.length;
       } else {
         lastNode = lastChild;
@@ -526,7 +1007,7 @@ Paginator.prototype.gotoPage = function(toPage,cursorPosition){
    * @inner
    * @return void
    */
-  function focusToTop(){
+  function focusToTop() {
     var content, firstNode;
     content = toPage.content();
     firstNode = content.firstChild;
@@ -534,13 +1015,18 @@ Paginator.prototype.gotoPage = function(toPage,cursorPosition){
     that._editor.selection.setCursorLocation(firstNode, 0);
   }
 
-  function focusToNode(node){
-    that._editor.selection.setCursorLocation(node,0);
+  function focusToNode(node) {
+    var textNode = node;
+    while (true) {
+      if (textNode.nodeType === 3 || !!$(textNode).attr('data-mce-bogus')) break;
+      textNode = $(textNode).contents().last()[0];
+    }
+    that._editor.selection.setCursorLocation(textNode, textNode.textContent.length || 0);
   }
 
   var that = this;
   var toPageContent = this.getPage(toPage.rank).content();
-  var fromPage = this._currentPage;
+  var fromPage = this.getCurrentPage();
   var fromPageContent;
   if (fromPage) {
     fromPageContent = this.getPage(fromPage.rank).content();
@@ -550,6 +1036,7 @@ Paginator.prototype.gotoPage = function(toPage,cursorPosition){
 
   if (toPage !== fromPage) {
 
+    /* Do not hide pages
     $.each(this.getPages(),function(i,page){
       if (page.rank === toPage.rank) {
         $(toPageContent).css({ display:'block' });
@@ -558,19 +1045,19 @@ Paginator.prototype.gotoPage = function(toPage,cursorPosition){
       } else {
         $(that.getPage(page.rank).content()).css({ display:'none' });
       }
-    });
+    }); */
 
     // cursorPosition may be a DOM Element, `ORIGIN`, `END` or undefined
-    if (typeof(cursorPosition) === 'object'){
-      console.info('focus to node',cursorPosition);
+    if (typeof (cursorPosition) === 'object') {
+      //console.info('focus to node',cursorPosition);
       focusToNode(cursorPosition);
-    } else if (cursorPosition === this.CURSOR_POSITION.ORIGIN){
-      console.info('focus to top');
+    } else if (cursorPosition === this.CURSOR_POSITION.ORIGIN) {
+      //console.info('focus to top');
       focusToTop();
     } else if (cursorPosition === this.CURSOR_POSITION.END) {
-      console.info('focus to bottom');
+      //console.info('focus to bottom');
       focusToBottom();
-    } else if (cursorPosition !== undefined){
+    } else if (cursorPosition !== undefined) {
       console.error('InvalidCursorPosition');
       throw new InvalidCursorPosition(cursorPosition);
     } else {
@@ -580,10 +1067,7 @@ Paginator.prototype.gotoPage = function(toPage,cursorPosition){
 
     this._editor.focus();
 
-    // set the page as current page
-    this._currentPage = toPage;
-
-    this._editor.dom.fire(this._editor.getDoc(),'PageChange',{
+    this._editor.dom.fire(this._editor.getDoc(), 'PageChange', {
       fromPage: fromPage,
       toPage: toPage,
       timestamp: new Date().getTime()
@@ -598,7 +1082,7 @@ Paginator.prototype.gotoPage = function(toPage,cursorPosition){
  * @method
  * @return void
  */
-Paginator.prototype.gotoFocusedPage = function(){
+Paginator.prototype.gotoFocusedPage = function () {
   var focusedPage, focusedDiv;
 
   try {
@@ -612,7 +1096,7 @@ Paginator.prototype.gotoFocusedPage = function(){
     focusedDiv = focusedPage.content();
     this._editor.selection.select(focusedDiv, true);
   } finally {
-    this.gotoPage(focusedPage,this.CURSOR_POSITION.END);
+    this.gotoPage(focusedPage, this.CURSOR_POSITION.END);
   }
 };
 
@@ -622,10 +1106,10 @@ Paginator.prototype.gotoFocusedPage = function(){
  * @param {string} [cursorPosition] - The requested cursor  position to set after navigating to
  * @return {Page|null} The previous page after navigation is done, null if previous page doesn'nt exist.
  */
-Paginator.prototype.gotoPrevious = function(cursorPosition){
+Paginator.prototype.gotoPrevious = function (cursorPosition) {
   var prevPage = this.getPrevious();
   cursorPosition = cursorPosition || this.CURSOR_POSITION.END;
-  return (prevPage) ? this.gotoPage(prevPage,cursorPosition) : null;
+  return (prevPage) ? this.gotoPage(prevPage, cursorPosition) : null;
 };
 
 /**
@@ -634,10 +1118,10 @@ Paginator.prototype.gotoPrevious = function(cursorPosition){
  * @param {string} [cursorPosition] - The requested cursor  position to set after navigating to
  * @return {Page|null} The next page after navigation is done, null if next page doesn'nt exist.
  */
-Paginator.prototype.gotoNext = function(cursorPosition){
+Paginator.prototype.gotoNext = function (cursorPosition) {
   var nextPage = this.getNext();
   cursorPosition = cursorPosition || this.CURSOR_POSITION.END;
-  return (nextPage) ? this.gotoPage(nextPage,cursorPosition) : null;
+  return (nextPage) ? this.gotoPage(nextPage, cursorPosition) : null;
 };
 
 /**
@@ -646,36 +1130,127 @@ Paginator.prototype.gotoNext = function(cursorPosition){
  * @return void
  * @throws {InvalidPageHeightError} if `currentHeight` fall down to zero meaning the link with DOM element is broken
  */
-Paginator.prototype.watchPage = function(){
-  var maxHeight;
-  var currentHeight;
-  var iteratee = -1; // pass to zero during the first loop
-  var cursorPositionAfterRepaging;
-  var lastBlock, savedLastBlock;
+Paginator.prototype.watchPage = function () {
+  var _nodes = [], _generalIndex = 0, _self_paginator = this, _configs = _self_paginator._editor.settings.paginate_configs();
 
-  // check if the current page is overflown by its content
-  // if true, repage the content
-  do {
-    if (lastBlock) savedLastBlock = lastBlock;
-    iteratee++; lastBlock = null;
+  // 0) save bookmark and scroll positions
+  var _bookmark = this._editor.selection.getBookmark();
+  _self_paginator._previousBodyOffSetTop = $(_self_paginator._body).scrollTop();
 
-    maxHeight = _getPageInnerHeight.call(this);
-    currentHeight = this.getCurrentPage().getContentHeight();
 
-    if (currentHeight===0) throw new InvalidPageHeightError(currentHeight);
+  // 1) get defaultHeight from page
+  var _innerHeight = _self_paginator.getPage(1).getInnerHeight();
 
-    if (currentHeight > maxHeight) {
-      lastBlock = _repage.call(this);
+  var _sumOfNodeHeights = 0, _iterationRank = 1, _newPageIndex = 0;
+  $.each(_self_paginator.getPages(), function (i, page) {
+    // 2) get all nodes inside all pages
+    page.innerContent().each(function (ii, content) {
+      var __margin_top = Number($(content).css('margin-top').split('px').join('')),
+        __margin_bottom = Number($(content).css('margin-bottom').split('px').join('')),
+        __height = $(content).outerHeight() + __margin_top;
+      var __node = {
+        prevPageIndex: ii,
+        generalIndex: _generalIndex++,
+        height: __height,
+        html: $(content).detach()
+      };
+      _nodes.push(__node);
+      // 3) evaluate when the sum of node heights extrapolate innerHeight
+      // if node.height do not fit inside innerHeight, assing to next page
+      if (_sumOfNodeHeights + __node.height + __margin_bottom > _innerHeight) {
+        _iterationRank++;
+        _newPageIndex = 0;
+        _sumOfNodeHeights = 0;
+      }
+
+      // if node.height + sumOfNodeHeights fit inside innerHeight, do nothing
+      __node.rank = _iterationRank;
+      __node.newPageIndex = _newPageIndex++;
+      _sumOfNodeHeights += __node.height;
+    });
+  });
+
+  // 4) repage using nodes array
+  // Iterates to the iterationRank. Creates or recycle pages.
+  var _node, _currentRank = 1, _currentPage = _self_paginator.getPage(1);
+  while ((_node = _nodes.shift()) !== undefined) {
+    if (_currentRank !== _node.rank) {
+      _currentRank = _node.rank;
+      _currentPage = _self_paginator.getPage(_node.rank);
+      if (!_currentPage)
+        _currentPage = _createNextPage.call(_self_paginator, undefined, _node.rank > 1 ? _self_paginator.getPage(_node.rank - 1) : undefined);
     }
-
-  } while ( lastBlock );
-
-  // if more than one loop ocured, there was be repaging.
-  if (iteratee) {
-    // pass the saved lastblock to the gotoNext() method for focusing on it after page change.
-    this.gotoNext(savedLastBlock);
+    // Add node back into page
+    _currentPage.append(_node.html);
   }
 
+  // 5) sanitize pages, headers and footers
+  $.each(_self_paginator.getPages(), function (i, page) {
+    if (!page.innerContent().length) return _self_paginator.removePage(page);
+  });
+
+  _self_paginator._editor.selection.moveToBookmark(_bookmark);
+  _self_paginator.updateScrollPosition();
+};
+
+/**
+ * Updates the scroll position using the current selected node.
+ */
+Paginator.prototype.updateScrollPosition = function () {
+  var _self_paginator = this,
+    _sel = _self_paginator._editor.selection.getSel().baseNode,
+    _normalizedNode = _sel.nodeType === 1 ? _sel : _sel.parentNode,
+    _nodeOffsetTop = _relativeOffsetTop(_normalizedNode, 'preventdelete'),
+    _nodeHeight = $(_normalizedNode).outerHeight(true),
+    _iframeHeight = Math.ceil($(_self_paginator._editor.iframeElement).height()),
+    _bodyPrevOffsetTop = _self_paginator._previousBodyOffSetTop,
+    _bodyOffsetTop = $(_self_paginator._body).scrollTop();
+
+  // Check if node is inside the viewport
+  if (_nodeOffsetTop >= _bodyPrevOffsetTop && _nodeOffsetTop + _nodeHeight < _bodyPrevOffsetTop + _iframeHeight) {
+    _self_paginator._previousNodeOffsetTop = _nodeOffsetTop; // save previous position
+    if (_bodyPrevOffsetTop !== _bodyOffsetTop) $(_self_paginator._body).scrollTop(_bodyPrevOffsetTop);
+    return;
+  }
+  //var normalizer = _self_paginator._previousNodeOffsetTop >= _nodeOffsetTop ? 0 : (_iframeHeight - _nodeHeight);
+  var normalizer = _nodeOffsetTop < _bodyPrevOffsetTop ? 0 : (_iframeHeight - _nodeHeight);
+
+  // Update scroll position
+  $(_self_paginator._body).scrollTop(_nodeOffsetTop - normalizer);
+  _self_paginator._previousNodeOffsetTop = _nodeOffsetTop;
+};
+
+/**
+ * Calculates offsetTop relative to given {stopClass}.
+ * @param {HTMLElement} node element to walk on tree
+ * @param {String} stopClass class in wich the element stop the recursion
+ * @param {Number} height accumulated height
+ * @return {Number} offsetTop relative to {stopClass}
+ */
+function _relativeOffsetTop(node, stopClass, height) {
+  if (!node) return 0;
+  if (!height) height = 0;
+  height += node.offsetTop;
+  if (node.className && node.className.contains(stopClass)) return height;
+  return _relativeOffsetTop(node.parentNode, stopClass, height);
+}
+
+/**
+ * Removes the page from paginator available pages (Custom Method).
+ * @method
+ * @private
+ * @param {Page} page - The page to be removed.
+ * @returns void
+ */
+Paginator.prototype.removePage = function (page) {
+  var that = this;
+  $.each(that.getPages(), function (i, el) {
+    if (el.rank === page.rank) {
+      $(page.content()).remove();
+      that.getPages().splice(i, 1);
+      return false;
+    }
+  });
 };
 
 /**
@@ -685,7 +1260,7 @@ Paginator.prototype.watchPage = function(){
  * @return {Element} The parent div element having an attribute data-paginator
  * @throws InvalidFocusedRangeError
  */
-var _getFocusedPageDiv = function(){
+var _getFocusedPageDiv = function () {
   var ret, selectedElement, parents;
   var currentRng = this._editor.selection.getRng();
 
@@ -701,47 +1276,12 @@ var _getFocusedPageDiv = function(){
 };
 
 /**
- * Move the overflowing content from the current page, to the next page.
- * Must be called when the page's content overflows.
- * @method
- * @private
- * @returns {boolean} True if success to move last block to the next page.
- *
- * @todo If it overflows, put the content that overflows in the next page, then, check if
- * the text on the next page can fill the current one without overflowing.
- */
-var _repage = function(){ console.info('repaging...');
-  var currentRng = this._editor.selection.getRng();
-  var children = $(this._currentPage.content()).children();
-  var lastBlock = children[children.length - 1];
-  var nextPage = this.getNext() || _createNextPage.call(this);
-
-  switch (lastBlock.nodeName) {
-    case 'DIV':
-    case 'P':
-      // Prepend element to page
-      $(lastBlock).prependTo($(nextPage.content()));
-      // Append page to document
-      $(nextPage.content()).appendTo(this._body);
-
-    break;
-
-    default:
-      window.alert('Une erreur est survenue dans le plugin de pagination. Merci de visionner l\'erreur dans la console et de déclarer cette erreur au support «support@sirap.fr»');
-      throw new Error('Unsupported block type for repaging: '+lastBlock.nodeName);
-
-  }
-
-  return lastBlock;
-};
-
-/**
  * Get the current computed padding
  * @method
  * @private
  * @return {object}
  */
-var _getDocPadding = function(){
+var _getDocPadding = function () {
   var that = this;
   return {
     top: $(that._body).css('padding-top'),
@@ -749,24 +1289,6 @@ var _getDocPadding = function(){
     bottom: $(that._body).css('padding-bottom'),
     left: $(that._body).css('padding-left')
   };
-};
-
-/**
- * Compute the page inner height in pixels. It must maches the height of the `div[data-paginator]` block.
- * @method
- * @private
- * @return {Number} The resulted height in pixels.
- */
-var _getPageInnerHeight = function(){
-
-  var outerHeight = Number(this._display.mm2px(this._defaultPage.height));
-  var docPadding = _getDocPadding.call(this);
-  var paddingTop = Number(docPadding.top.split('px').join(''));
-  var paddingBottom = Number(docPadding.bottom.split('px').join(''));
-
-  var innerHeight = outerHeight - paddingTop - paddingBottom;
-
-  return Math.ceil(innerHeight-1); // -1 is the dirty fix mentionned in the todo tag
 };
 
 /**
@@ -778,16 +1300,32 @@ var _getPageInnerHeight = function(){
  *
  * @todo Replace inline CSS style rules by adding an inner page CSS class. This CSS class has to be created and versionned carefully.
  */
-var _createEmptyDivWrapper = function(pageRank){
+var _createEmptyDivWrapper = function (pageRank) {
   var that = this;
-  return $('<div>').attr({
+
+  // Page structure
+  var page = $('<div>').attr({
     'data-paginator': true,
     'data-paginator-page-rank': pageRank
   }).css({
-    'page-break-after': 'always',
-    'min-height': _getPageInnerHeight.call(that),
-    'background': 'linear-gradient(#FFF0F5,#FFFACD)' // @TODO remove for production
-  });
+    'margin': this._defaultPage.MARGIN_Y + 'px auto',
+    'min-height': this._defaultPage.getInnerHeight(), // only innerHeight; paddings will be applied in setHeadersAndFooters
+    'width': this._defaultPage.getInnerWidth()
+  }).addClass("preventdelete");
+
+  return page;
+};
+
+/**
+ * Toggle the state of headers and footers according the settings
+ * @method
+ * @param {Boolean} first_invalidation define wheter is the first invalidation or not
+ * @return void
+ */
+Paginator.prototype.toggleHeadersAndFooters = function () {
+  var that = this;
+  $.each(this.getPages(), function (i, page) { page.setHeadersAndFooters(); });
+  that.watchPage();
 };
 
 /**
@@ -795,27 +1333,31 @@ var _createEmptyDivWrapper = function(pageRank){
  * @method
  * @private
  * @param {NodeList} contentNodeList The optional node list to put in the new next page.
+ * @param {Page} fromPage The page reference from which desires to create the next page.
  * @returns {Page} The just created page
  */
-var _createNextPage = function(contentNodeList){
-  var newPage;
-  var nextRank = (this._currentPage) ? (this._currentPage.rank+1) : 1 ;
-  var divWrapper = _createEmptyDivWrapper.call(this,nextRank);
+var _createNextPage = function (contentNodeList, fromPage) {
+  var currentPage = fromPage || this.getCurrentPage(),
+    nextRank = currentPage ? (currentPage.rank + 1) : 1,
+    divWrapper = _createEmptyDivWrapper.call(this, nextRank);
   if (contentNodeList) {
     $(contentNodeList).appendTo(divWrapper);
   }
-  newPage = new Page(this._defaultPage.format().label, this._defaultPage.orientation, nextRank, divWrapper[0]);
-  this._pages.push(newPage);
-  return newPage;
+  return _createNexPageFromRank.call(this, divWrapper[0], nextRank);
 };
 
+var _createNexPageFromRank = function (contentNodeList, nextRank) {
+  var newPage = new Page(this._defaultPage.format().label, this._defaultPage.orientation, nextRank, contentNodeList, this._editor);
+  this._pages.push(newPage);
+  $(newPage.content()).appendTo(this._body);
+  return newPage;
+};
 
 // Exports Paginator class
 exports = module.exports = Paginator;
 
 // Bind errors to the classes/paginator module.
 exports.errors = errors;
-
 },{"./Display":2,"./Page":3,"./paginator/errors":5,"./paginator/parser":6}],5:[function(require,module,exports){
 /**
  * Paginator errors module
@@ -977,7 +1519,7 @@ function tinymcePluginPaginate(editor) {
    * @function
    * @private
    */
-  function _debugEditorEvents(){
+  function _debugEditorEvents() {
     var myevents = [];
     var mycount = {
       init: 0,
@@ -986,29 +1528,29 @@ function tinymcePluginPaginate(editor) {
       setcontent: 0
     };
 
-    editor.on('init',function(evt){
+    editor.on('init', function (evt) {
       console.log(editor);
-      myevents.push({'init':evt});
-      mycount.init ++;
-      console.log(myevents,mycount);
+      myevents.push({ 'init': evt });
+      mycount.init++;
+      console.log(myevents, mycount);
       // alert('pause after "init" event');
     });
-    editor.on('change',function(evt){
-      myevents.push({'change':evt});
-      mycount.change ++;
-      console.log(myevents,mycount);
+    editor.on('change', function (evt) {
+      myevents.push({ 'change': evt });
+      mycount.change++;
+      console.log(myevents, mycount);
       // alert('pause after "change" event');
     });
-    editor.on('NodeChange',function(evt){
-      myevents.push({'NodeChange':evt});
-      mycount.nodechange ++;
-      console.log(myevents,mycount);
+    editor.on('NodeChange', function (evt) {
+      myevents.push({ 'NodeChange': evt });
+      mycount.nodechange++;
+      console.log(myevents, mycount);
       // alert('pause after "NodeChange" event');
     });
-    editor.on('SetContent',function(evt){
-      myevents.push({'SetContent':evt});
-      mycount.setcontent ++;
-      console.log(myevents,mycount);
+    editor.on('SetContent', function (evt) {
+      myevents.push({ 'SetContent': evt });
+      mycount.setcontent++;
+      console.log(myevents, mycount);
       // alert('pause after "SetContent" event');
     });
 
@@ -1020,13 +1562,14 @@ function tinymcePluginPaginate(editor) {
    * On 'PageChange' event listener. Update page rank input on paginator's navigation buttons.
    * @function
    * @private
+   * @param {event} evt javascript event
    */
-  function onPageChange(evt){
+  function onPageChange(evt) {
     ui.updatePageRankInput(evt.toPage.rank);
     editor.nodeChanged();
   }
 
-  function onRemoveEditor(evt){
+  function onRemoveEditor(evt) {
     ui.removeNavigationButtons();
     paginator.destroy();
     watchPageIterationsCount = 0;
@@ -1034,35 +1577,328 @@ function tinymcePluginPaginate(editor) {
   }
 
   /**
-   * Wrap Paginator#watchPage() in try catch statements and private function to allow watch recursively on error
+   * Check Prevent Delete
+   * ADAPTED FROM: https://stackoverflow.com/questions/29491324/how-to-prevent-delete-of-a-div-in-tinymce-editor
    * @function
    * @private
+   * @param {event} evt - Javascript event
    * @returns void
-   * @throws {Error} if error thrown is not instance of InvalidPageHeightError
    */
-  function watchPage(){
-    try {
-      paginator.watchPage();
-    } catch (e) {
-      watchPageIterationsCount++;
-      // Due to a suspecte bug in tinymce that break the binding of DOM elements with the paginator.
-      if (e instanceof InvalidPageHeightError) {
-        console.error(e.message+'... re-init paginator then watch page again...');
-        paginator.init();
-        if (watchPageIterationsCount<10) {
-          watchPage();
-        } else {
-          watchPageIterationsCount = 0;
+  function checkPreventDelete(evt) {
+    /* Checks the container height */
+    function _isEmpty(innerHTML) {
+      return (innerHTML.replace(/\r?\n|\r/igm, '').length === 0);
+    }
+
+    function _getInnerText(el) {
+      return el.innerText.replace(/\r?\n|\r/igm, '');
+    }
+
+    function _isPageEmpty(page) {
+      return _getPageContent(page).length === 0;
+    }
+
+    function _getPageContent(page) {
+      return $(page).children(':not(.pageFooter):not(.pageHeader)');
+    }
+
+    function _setCursor(elem, offset) {
+      editor.selection.setCursorLocation(elem.childNodes[0], offset);
+    }
+
+    var _node = editor.selection.getNode(),
+      _page = (_node.nodeName !== 'BODY') ? $(_node).closest('div[data-paginator="true"]')[0] : $(_node.firstChild),
+      _sel = editor.selection.getSel(),
+      _range = _sel.type === 'Range' ? editor.selection.getRng() : null;
+
+    /**
+     * Mannually sanitizes editor. Deals with ranged selections.
+     * @param {boolean} pd prevent default action
+     */
+    function _sanitizeWithRange(pd) {
+      // Remove only allowed Nodes in this range selection
+      if (_sel.type !== 'Range' && !editor.plugins.paginate.isEmpty() && _node.nodeName !== 'BODY') return;
+      if (!_range) return;
+
+      // if selection is text, only returns
+      if (_range.commonAncestorContainer.nodeType === 3) return;
+
+      // prevent default action
+      if (pd) {
+        evt.preventDefault();
+        evt.stopPropagation();
+      }
+      /* Proceed with delete and remove node if range is empty */
+      // Select all nodes inside this selection
+      var _nodeIterator = document.createTreeWalker(
+        _range.commonAncestorContainer,
+        NodeFilter.SHOW_ALL,
+        {
+          acceptNode: function (node) {
+            if (node.className && node.className.contains('page'))
+              return NodeFilter.FILTER_REJECT;
+            if (node.className && node.className.contains('preventdelete'))
+              return NodeFilter.FILTER_SKIP;
+            if ($(node).closest('.preventdelete').length && node.nodeType === 1 && node.tagName !== 'BR')
+              return NodeFilter.FILTER_ACCEPT;
+            return NodeFilter.FILTER_SKIP;
+          }
         }
-      } else throw e;
+      );
+      // initialize variables for node removals
+      var _marked = false, _nodeList = [],
+        normalizedStart = _range.startContainer.nodeType === 3 ? _range.startContainer.parentNode : _range.startContainer,
+        _normalizedEnd = _range.endContainer.nodeType === 3 ? _range.endContainer.parentNode : _range.endContainer;
+      while (_nodeIterator.nextNode()) {
+        if (!_marked) {
+          if (_nodeIterator.currentNode !== normalizedStart) continue;
+          _marked = true;
+        }
+        if (_nodeList.length > 1) _nodeList.pop().remove();
+        _nodeList.push(_nodeIterator.currentNode);
+        if (_nodeIterator.currentNode === _normalizedEnd) break;
+      }
+      // remove first and last nodeIt using offset
+      var _firstNode = _nodeList.shift();
+      _firstNode.innerText = _getInnerText(_firstNode).substr(0, _range.startOffset);
+      var _firstOffset = _getInnerText(_firstNode).length;
+      var _lastNode = _nodeList.pop();
+      if (_range.endOffset < _getInnerText(_normalizedEnd).length) {
+        _lastNode.innerText = (_getInnerText(_lastNode).length > 0 && _getInnerText(_lastNode).substr(_range.endOffset)) || '';
+        // merge first and last
+        _firstNode.innerText += _getInnerText(_lastNode);
+      }
+      _lastNode.remove();
+      // append BR in case nothing left
+      if (_firstNode.children.length === 0) _firstNode.appendChild(document.createElement('br'));
+
+      // sets the cursor to the middle of mixed texts
+      _setCursor(_firstNode, _firstOffset);
+
+      /* Check paginator status */
+      paginator.watchPage();
+      if (pd) editor.save();
+      return;
+    }
+
+    /**
+     * Mannually sanitizes editor. Deals with caret selections.
+     * @param {number} direction 1 for upwards (↑), 2 for downwards (↓)
+     * @param {boolean} removing true for deleting (backspace/delete), false for arrowkeys
+     * @param {boolean} walking true if cursor is walikng right (→) or left (←)
+     */
+    function _sanitizeWithoutRange(direction, removing, walking) {
+      if (direction < 0) return;
+
+      var _siblingPage, _pageContent, _isBoundary,
+        _normalizedNode = _sel.baseNode.nodeType === 3 ? _sel.baseNode.parentNode : _sel.baseNode, _pd = false;
+
+      // check if cursor is in a boundary element of the page
+      function _isInBoundary(nodeSibling) {
+        if (nodeSibling) return nodeSibling.className.contains('page') ? true : false;
+        return true;
+      }
+
+      // Move cursor
+      function _moveCursor() {
+        // If I'm walking perpendicular
+        // and going upwards (↑)
+        if (direction === 1) {
+          // sets the cursor to the ending of the last node of siblingPage
+          var normalizedOffset = _getInnerText(_siblingPageContent[_siblingPageContent.length - 1]).length - 1;
+          normalizedOffset = Math.max(_normalizedNode, 0);
+          _setCursor(_siblingPageContent[_siblingPageContent.length - 1], normalizedOffset);
+          return _preventDelete(true);
+        }
+        // and going downwards (↓)
+        if (direction === 2) {
+          // sets the cursor to the beginning of the first node of siblingPage
+          _setCursor(_siblingPageContent[0], 0);
+          return _preventDelete(true);
+        }
+      }
+
+      // stop default actions
+      function _preventDelete(pd) {
+        if (!pd) return;
+        evt.preventDefault();
+        evt.stopPropagation();
+      }
+
+      // 0) check if we are in the page boundary
+      // if the direction is upwards (↑)
+      if (direction === 1) _isBoundary = _isInBoundary(_normalizedNode.previousElementSibling);
+      // or the direction is donwards (↓)
+      else if (direction === 2) _isBoundary = _isInBoundary(_normalizedNode.nextElementSibling);
+
+      // if not on page boundary, 
+      if (!_isBoundary) {
+        // and I'm removing: let it be
+        if (removing) return _preventDelete(false);
+        // and I'm walking
+        if (walking) {
+          // and I'm going upwards and cursor is in position 0
+          // move cursor to previous element
+          if (direction === 1 && _sel.baseOffset === 0) {
+            var normalizedOffset = _getInnerText(_normalizedNode.previousElementSibling).length - 1;
+            normalizedOffset = Math.max(normalizedOffset, 0);
+            _setCursor(_normalizedNode.previousElementSibling, normalizedOffset);
+            _pd = true;
+            // and I'm going downwards and cursor is in position length-1
+            // move cursor to next element
+          } else if (direction === 2 && _getInnerText(_normalizedNode).length === _sel.baseOffset) {
+            _setCursor(_normalizedNode.nextElementSibling, 0);
+            _pd = true;
+          }
+        }
+        // nothing to do at all
+        paginator.updateScrollPosition();
+        return _preventDelete(_pd);
+      }
+
+      // 1) get the sibling upwards or donwards page
+      // if the direction is upwards (↑)
+      if (direction === 1) _siblingPage = _page.previousElementSibling;
+      // or the direction is donwards (↓)
+      else if (direction === 2) _siblingPage = _page.nextElementSibling;
+
+      // if there'snt siblingPage
+      if (!_siblingPage) {
+        _pageContent = _getPageContent(_page);
+        if (direction === 1) {
+          // and I'm in the first element of the page
+          // nothing to do, only prevent default action
+          if (_pageContent[0] === _normalizedNode && _sel.focusOffset === 0)
+            return _preventDelete(true);
+        } else if (direction === 2) {
+          // and I'm in the last element of the page
+          // nothing to do, only prevent default action
+          if (_pageContent[_pageContent.length - 1] === _normalizedNode && _getInnerText(_pageContent[_pageContent.length - 1]).length === _sel.baseOffset)
+            return _preventDelete(true);
+        }
+        return _preventDelete(false);
+      }
+      var _siblingPageContent = _getPageContent(_siblingPage);
+
+      // 2) select the pageContent content using parameters
+      // if is removing
+      if (removing) {
+        _pageContent = _getPageContent(_page);
+        // and the direction is upwards (↑),
+        // I need the content of the current page
+        if (direction === 1) {
+          if (_sel.focusOffset === 0) {
+            // and there's only a child within page content
+            // remove P from escaping page
+            if (_pageContent[0] === _normalizedNode) {
+              _siblingPageContent[_siblingPageContent.length - 1].innerText += _getInnerText(_pageContent[0]);
+              _pageContent[0].remove();
+              paginator.watchPage();
+              _setCursor(_siblingPageContent[_siblingPageContent.length - 1], _getInnerText(_siblingPageContent[_siblingPageContent.length - 1]).length);
+              return _preventDelete(true);
+            }
+          }
+        } else
+          // and the direction is donwards (↓),
+          // I need the content of the sibling page
+          if (direction === 2) {
+            if (_getInnerText(_normalizedNode).length === _sel.baseOffset) {
+              // and there's only a child within page content
+              // remove P from escaping page
+              if (_pageContent[_pageContent.length - 1] === _normalizedNode) {
+                _pageContent[_pageContent.length - 1].innerText += _getInnerText(_siblingPageContent[0]);
+                _siblingPageContent[0].remove();
+                paginator.watchPage();
+                _setCursor(_pageContent[_pageContent.length - 1], _getInnerText(_pageContent[_pageContent.length - 1]).length);
+                return _preventDelete(true);
+              }
+            }
+          }
+
+        return _preventDelete(false);
+      }
+
+      // 3) if isn't removing, I need to walk the cursor
+      // but if I'm walking sideways
+      // I'll walk only if hit the end or beginning
+      if (walking) {
+        _pageContent = _getPageContent(_page);
+        _pd = false;
+        // if I'm going left and I'm in the offset 0
+        if (direction === 1 && _sel.baseOffset === 0) {
+          // sets the cursor to the ending of the last node of siblingPage
+          _setCursor(_siblingPageContent[_siblingPageContent.length - 1], _getInnerText(_siblingPageContent[_siblingPageContent.length - 1]).length);
+          _pd = true;
+        }
+        // if I'm going right and I'm in the offset is equal to the element text length
+        if (direction === 2 && _sel.baseOffset >= _getInnerText(_pageContent[0]).length - 1) {
+          // sets the cursor to the beginning of the first node of siblingPage
+          _setCursor(_siblingPageContent[0], 0);
+          _pd = true;
+        }
+        // just walk
+        paginator.updateScrollPosition();
+        return _preventDelete(_pd);
+      }
+      // If I'm walking perpendicular
+      // and going upwards (↑)
+      _moveCursor();
+    }
+
+    /* If delete keys pressed */
+    var direction = 0;
+    switch (evt.keyCode) {
+      case 37: // arrow ←
+      case 38: // arrow ↑ 
+        direction = 1; // (↑)
+      case 39: // arrow →
+      case 40: // arrow ↓
+        if (!direction) direction = 2; // (↓)
+      case 8: // backspace
+        // set direction upwards
+        if (!direction) direction = 1; // (↑)
+      case 46: // delete
+        if (!direction) direction = 2; // (↓)
+        // if range exists and there isn't Ctrl pressed 
+        // prevent delete and backspace actions
+        if (!evt.ctrlKey) {
+          if (_range) _sanitizeWithRange(true);
+          else _sanitizeWithoutRange(direction,
+            evt.keyCode === 8 || evt.keyCode === 46, // is removing
+            evt.keyCode === 37 || evt.keyCode === 39); // walking sideways with cursor
+          break;
+        }
+      case 86: // V
+      case 88: // X
+        if (evt.ctrlKey) _sanitizeWithRange(true);
+        break;
+      case 27: // esc
+        if (editor.plugins.fullscreen.isFullscreen())
+          editor.execCommand('mceFullScreen');
+        break;
+      case 13:
+        setTimeout(function () {
+          paginator.watchPage();
+        }, 0);
+      default:
+        if (!evt.ctrlKey) {
+          var valid =
+            (evt.keyCode > 47 && evt.keyCode < 58) || // number keys
+            evt.keyCode == 32 || evt.keyCode == 13 || // spacebar & return key(s) (if you want to allow carriage returns)
+            (evt.keyCode > 64 && evt.keyCode < 91) || // letter keys
+            (evt.keyCode > 95 && evt.keyCode < 112) || // numpad keys
+            (evt.keyCode > 185 && evt.keyCode < 193) || // ;=,-./` (in order)
+            (evt.keyCode > 218 && evt.keyCode < 223); // [\]' (in order)
+          if (valid) _sanitizeWithRange(false);
+        }
     }
   }
 
   /**
-  * A 'Paginator' object to handle all paginating behaviors.
-  * @var {Paginator} paginator
-  * @global
-  */
+   * A 'Paginator' object to handle all paginating behaviors.
+   * @var {Paginator} paginator
+   * @global
+   */
   var paginator;
 
   /**
@@ -1084,7 +1920,7 @@ function tinymcePluginPaginate(editor) {
    * @var {integer}
    * @global
    */
-  var watchPageIterationsCount=0;
+  var watchPageIterationsCount = 0;
 
   /**
    * The watch of active page is enabled if this var is true
@@ -1100,7 +1936,7 @@ function tinymcePluginPaginate(editor) {
    * @method
    * @returns void
    */
-  this.disableWatchPage = function(){  // jshint ignore:line
+  this.disableWatchPage = function () { // jshint ignore:line
     watchPageEnabled = false;
   };
   /**
@@ -1108,7 +1944,7 @@ function tinymcePluginPaginate(editor) {
    * @method
    * @returns void
    */
-  this.enableWatchPage = function(){ // jshint ignore:line
+  this.enableWatchPage = function () { // jshint ignore:line
     watchPageEnabled = true;
   };
 
@@ -1116,64 +1952,81 @@ function tinymcePluginPaginate(editor) {
    * Get the current page
    * @returns {Page} the paginator current page.
    */
-  this.getCurrentPage = function(){ // jshint ignore:line
+  this.getCurrentPage = function () { // jshint ignore:line
     return paginator.getCurrentPage();
   };
 
-  editor.once('init',function(){
-    paginator = new Paginator('A4','portrait', editor);
-    editor.dom.bind(editor.getDoc(),'PageChange',onPageChange);
-    setTimeout(function(){
-      paginator.init();
-      paginator.gotoFocusedPage();
-      paginatorListens = true;
-      watchPageEnabled = true;
-      ui.appendNavigationButtons(paginator);
-    },500);
+  /**
+   * Returns if the editor is empty
+   * @returns {boolean} is empty
+   */
+  this.isEmpty = function () { // jshint ignore:line
+    return paginator.isEmpty();
+  };
+
+  /**
+   * Returns if the editor is dirty
+   * @returns {boolean} is dirty
+   */
+  this.isDirty = function () {
+    return paginator.isDirty();
+  };
+
+  /**
+   * Returns if the editors content is empty
+   * @returns {boolean} is empty
+   */
+  this.contentIsEmpty = function () { // jshint ignore:line
+    return paginator.contentIsEmpty();
+  };
+
+  editor.once('init', function () {
+    paginator = new Paginator('A4', 'portrait', editor);
+    editor.dom.bind(editor.getDoc(), 'PageChange', onPageChange);
+    editor.shortcuts.remove('meta+a'); /* Enable native CTRL + A shortcut */
+    paginator.init();
+    paginatorListens = true;
+    watchPageEnabled = true;
+    paginator.gotoFocusedPage();
+    if (editor.settings.paginate_navigation_buttons) ui.appendNavigationButtons(paginator);
   });
 
-  editor.on('remove',onRemoveEditor);
+  editor.on('remove', onRemoveEditor);
 
-  editor.on('change',function(evt){
-    // var newContent, beforeContent;
-    // if (evt.level && evt.lastLevel) {
-    //     newContent = evt.level.content;
-    //     beforeContent = evt.lastLevel.content;
-    //
-    //     if (newContent === '<p><br data-mce-bogus="1"></p>') {
-    //       if ( $('div[data-paginator]', $('<div>').append(beforeContent)).length ) {
-    //         editor.setContent(beforeContent);
-    //         paginator.init();
-    //         paginator.gotoFocusedPage();
-    //       }
-    //     }
-    // }
-
-    if(paginatorListens && watchPageEnabled) paginator.watchPage();
+  /**
+   * On editor change
+   * Checks if debounce time is bigger then last changed time.
+   * This debounce saves a lot processing.
+   */
+  var _change_debouce = 500, _prev_debounce = Date.now();
+  editor.on('change', function (evt) {
+    evt.preventDefault();
+    var newContent, beforeContent;
+    if (!paginatorListens || !watchPageEnabled) return;
+    if (_prev_debounce + _change_debouce > Date.now()) return;
+    _prev_debounce = Date.now();
+    paginator.watchPage();
   });
 
-  editor.on('SetContent',function(){
-    //if(paginatorStartListening) paginator.init();
+  editor.on('keydown', function (evt) {
+    checkPreventDelete(evt);
   });
 
-  editor.on('NodeChange',function(evt){
-    if (evt.element && $(evt.element).attr('data-paginator')) {
-      if (paginatorListens && watchPageEnabled) {
-        try {
-          paginator.gotoFocusedPage();
-        } catch (e) {
-          console.info('Can\'t go to focused page now.');
-          console.error(e.stack);
-        }
-      }
-    }
+  editor.on('SetContent', function (args) {
+    if (paginator) paginator.updatePages();
   });
 
+  editor.on('toggleCabecalhoRodape', function (evt) {
+    paginator.toggleHeadersAndFooters();
+  });
+
+  editor.on('toggleMargin', function (evt) {
+    paginator.toggleHeadersAndFooters();
+  });
 }
 
 // Add the plugin to the tinymce PluginManager
 tinymce.PluginManager.add('paginate', tinymcePluginPaginate);
-
 },{"./classes/Paginator":4,"./utils/ui":9}],8:[function(require,module,exports){
 /**
  * page-formats module
