@@ -1569,6 +1569,12 @@ function tinymcePluginPaginate(editor) {
     editor.nodeChanged();
   }
 
+  /**
+   * on 'RemoveEditor' event listener.
+   * @function
+   * @private
+   * @param {event} evt javascript event
+   */
   function onRemoveEditor(evt) {
     ui.removeNavigationButtons();
     paginator.destroy();
@@ -1577,8 +1583,7 @@ function tinymcePluginPaginate(editor) {
   }
 
   /**
-   * Check Prevent Delete
-   * ADAPTED FROM: https://stackoverflow.com/questions/29491324/how-to-prevent-delete-of-a-div-in-tinymce-editor
+   * Whatches any know keydown event that matters.
    * @function
    * @private
    * @param {event} evt - Javascript event
@@ -1851,12 +1856,15 @@ function tinymcePluginPaginate(editor) {
       case 37: // arrow ←
       case 38: // arrow ↑ 
         direction = 1; // (↑)
+        /* falls through */
       case 39: // arrow →
       case 40: // arrow ↓
         if (!direction) direction = 2; // (↓)
+        /* falls through */
       case 8: // backspace
         // set direction upwards
         if (!direction) direction = 1; // (↑)
+        /* falls through */
       case 46: // delete
         if (!direction) direction = 2; // (↓)
         // if range exists and there isn't Ctrl pressed 
@@ -1868,6 +1876,7 @@ function tinymcePluginPaginate(editor) {
             evt.keyCode === 37 || evt.keyCode === 39); // walking sideways with cursor
           break;
         }
+        /* falls through */
       case 86: // V
       case 88: // X
         if (evt.ctrlKey) _sanitizeWithRange(true);
@@ -1880,6 +1889,7 @@ function tinymcePluginPaginate(editor) {
         setTimeout(function () {
           paginator.watchPage();
         }, 0);
+        /* falls through */
       default:
         if (!evt.ctrlKey) {
           var valid =
@@ -1968,7 +1978,7 @@ function tinymcePluginPaginate(editor) {
    * Returns if the editor is dirty
    * @returns {boolean} is dirty
    */
-  this.isDirty = function () {
+  this.isDirty = function () { // jshint ignore:line
     return paginator.isDirty();
   };
 
