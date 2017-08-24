@@ -296,7 +296,6 @@ Page.prototype.setHeadersAndFooters = function () {
     spacing.height = that.getInnerHeight();
   }
 
-
   insertHeaderData(header, headerAndFooterEnabled);
   insertFooterData(footer, headerAndFooterEnabled);
 
@@ -785,7 +784,8 @@ Paginator.prototype.updatePages = function () {
   // remove pages
   _self_paginator._pages.splice(_tinymce_pages.length);
 
-  _self_paginator.watchPage();
+  // invalidate headers and footers wich calls watch page
+  _self_paginator.toggleHeadersAndFooters();
 };
 
 /**
@@ -1569,12 +1569,6 @@ function tinymcePluginPaginate(editor) {
     editor.nodeChanged();
   }
 
-  /**
-   * on 'RemoveEditor' event listener.
-   * @function
-   * @private
-   * @param {event} evt javascript event
-   */
   function onRemoveEditor(evt) {
     ui.removeNavigationButtons();
     paginator.destroy();
@@ -1583,7 +1577,8 @@ function tinymcePluginPaginate(editor) {
   }
 
   /**
-   * Whatches any know keydown event that matters.
+   * Check Prevent Delete
+   * ADAPTED FROM: https://stackoverflow.com/questions/29491324/how-to-prevent-delete-of-a-div-in-tinymce-editor
    * @function
    * @private
    * @param {event} evt - Javascript event
@@ -1828,7 +1823,6 @@ function tinymcePluginPaginate(editor) {
       // I'll walk only if hit the end or beginning
       if (walking) {
         _pageContent = _getPageContent(_page);
-        _pd = false;
         // if I'm going left and I'm in the offset 0
         if (direction === 1 && _sel.baseOffset === 0) {
           // sets the cursor to the ending of the last node of siblingPage
@@ -2023,14 +2017,15 @@ function tinymcePluginPaginate(editor) {
   });
 
   editor.on('SetContent', function (args) {
-    if (paginator) paginator.updatePages();
+    if (!paginator) return;
+    paginator.updatePages();
   });
 
-  editor.on('toggleCabecalhoRodape', function (evt) {
+  editor.on('ToggleHeadersAndFooters', function (evt) {
     paginator.toggleHeadersAndFooters();
   });
 
-  editor.on('toggleMargin', function (evt) {
+  editor.on('ToggleMargins', function (evt) {
     paginator.toggleHeadersAndFooters();
   });
 }

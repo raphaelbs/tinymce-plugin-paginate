@@ -161,7 +161,8 @@ Paginator.prototype.updatePages = function () {
   // remove pages
   _self_paginator._pages.splice(_tinymce_pages.length);
 
-  _self_paginator.watchPage();
+  // invalidate headers and footers wich calls watch page
+  _self_paginator.toggleHeadersAndFooters();
 };
 
 /**

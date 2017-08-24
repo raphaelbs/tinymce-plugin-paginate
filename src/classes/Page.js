@@ -179,7 +179,6 @@ Page.prototype.setHeadersAndFooters = function () {
     spacing.height = that.getInnerHeight();
   }
 
-
   insertHeaderData(header, headerAndFooterEnabled);
   insertFooterData(footer, headerAndFooterEnabled);
 
