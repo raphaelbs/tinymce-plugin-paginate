@@ -31,6 +31,13 @@
 		<ul class="nav navbar-nav">
 			
 			<li class="dropdown">
+				<a href="namespaces.list.html" class="dropdown-toggle" data-toggle="dropdown">Namespaces<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="Pagiantor.errors.html">Pagiantor.errors</a></li>
+				</ul>
+			</li>
+			
+			<li class="dropdown">
 				<a href="modules.list.html" class="dropdown-toggle" data-toggle="dropdown">Modules<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
 					<li><a href="module-class_Display.html">class/Display</a></li><li><a href="module-class_Page.html">class/Page</a></li><li><a href="module-classes_Paginator.html">classes/Paginator</a></li><li><a href="module-tinycmce-plugin-paginate.html">tinycmce-plugin-paginate</a></li><li><a href="module-utils_page-formats.html">utils/page-formats</a></li><li><a href="module-utils_ui.html">utils/ui</a></li>
@@ -40,14 +47,14 @@
 			<li class="dropdown">
 				<a href="classes.list.html" class="dropdown-toggle" data-toggle="dropdown">Classes<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="module-class_Display-Display.html">class/Display~Display</a></li><li><a href="module-class_Page-Page.html">class/Page~Page</a></li><li><a href="module-classes_Paginator-Paginator.html">classes/Paginator~Paginator</a></li><li><a href="module-utils_page-formats-Format.html">utils/page-formats~Format</a></li>
+					<li><a href="module-class_Display-Display.html">class/Display~Display</a></li><li><a href="module-class_Page-Page.html">class/Page~Page</a></li><li><a href="module-classes_Paginator-Paginator.html">classes/Paginator~Paginator</a></li><li><a href="module-utils_page-formats-Format.html">utils/page-formats~Format</a></li><li><a href="Paginator.errors.InvalidCursorPosition.html">Paginator.errors.InvalidCursorPosition</a></li><li><a href="Paginator.errors.InvalidFocusedRangeError.html">Paginator.errors.InvalidFocusedRangeError</a></li><li><a href="Paginator.errors.InvalidPageHeightError.html">Paginator.errors.InvalidPageHeightError</a></li><li><a href="Paginator.errors.InvalidPageRankError.html">Paginator.errors.InvalidPageRankError</a></li>
 				</ul>
 			</li>
 			
 			<li class="dropdown">
 				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="global.html#display">display</a></li><li><a href="global.html#InvalidPageHeightError">InvalidPageHeightError</a></li><li><a href="global.html#Paginator">Paginator</a></li><li><a href="global.html#paginator">paginator</a></li><li><a href="global.html#paginatorListens">paginatorListens</a></li><li><a href="global.html#supportedFormats">supportedFormats</a></li><li><a href="global.html#tinymcePluginPaginate">tinymcePluginPaginate</a></li><li><a href="global.html#ui">ui</a></li><li><a href="global.html#watchPageEnabled">watchPageEnabled</a></li><li><a href="global.html#watchPageIterationsCount">watchPageIterationsCount</a></li>
+					<li><a href="global.html#display">display</a></li><li><a href="global.html#InvalidPageHeightError">InvalidPageHeightError</a></li><li><a href="global.html#paginator">paginator</a></li><li><a href="global.html#Paginator">Paginator</a></li><li><a href="global.html#paginatorListens">paginatorListens</a></li><li><a href="global.html#supportedFormats">supportedFormats</a></li><li><a href="global.html#tinymcePluginPaginate">tinymcePluginPaginate</a></li><li><a href="global.html#ui">ui</a></li><li><a href="global.html#watchPageEnabled">watchPageEnabled</a></li><li><a href="global.html#watchPageIterationsCount">watchPageIterationsCount</a></li>
 				</ul>
 			</li>
 			
@@ -59,16 +66,18 @@
 			</li>
 			
 		</ul>
-		<div class="col-sm-3 col-md-3">
-            <form class="navbar-form" role="search">
-                <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Search" name="q" id="search-input">
-                    <div class="input-group-btn">
-                        <button class="btn btn-default" id="search-submit"><i class="glyphicon glyphicon-search"></i></button>
+        
+            <div class="col-sm-3 col-md-3">
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search" name="q" id="search-input">
+                        <div class="input-group-btn">
+                            <button class="btn btn-default" id="search-submit"><i class="glyphicon glyphicon-search"></i></button>
+                        </div>
                     </div>
-                </div>
-            </form>
-        </div>
+                </form>
+            </div>
+        
 	</div>
 
 </div>
@@ -105,7 +114,7 @@
         
 <hr>
 <dt>
-    <h4 class="name" id="Paginator"><span class="type-signature"></span>new Paginator(pageFormatLabel, pageOrientation, doc)</h4>
+    <h4 class="name" id="Paginator"><span class="type-signature"></span>new Paginator(pageFormatLabel, pageOrientation, ed)</h4>
     
     
 </dt>
@@ -196,13 +205,13 @@
 
         <tr>
             
-                <td class="name"><code>doc</code></td>
+                <td class="name"><code>ed</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">DOMDocument</span>
+<span class="param-type">Object</span>
 
 
 
@@ -213,7 +222,7 @@
 
             
 
-            <td class="description last">The document given by editor.getDoc() of the tinymce API</td>
+            <td class="description last">The editor object given by the tinymce API</td>
         </tr>
 
     
@@ -320,7 +329,7 @@
             
 <hr>
 <dt class="name" id="_body">
-    <h4><span class="type-signature">&lt;private> </span>_body<span class="type-signature"></span></h4>
+    <h4 id="_body"><span class="type-signature">&lt;private> </span>_body<span class="type-signature"></span></h4>
 
     
 </dt>
@@ -418,126 +427,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-75">line 75</a>
-			</li>
-		</ul>
-	</dd>
-	
-
-	
-
-	
-
-	
-</dl>
-
-
-    
-</dd>
-
-        
-            
-<hr>
-<dt class="name" id="_currentPage">
-    <h4><span class="type-signature"></span>_currentPage<span class="type-signature"></span></h4>
-
-    
-</dt>
-<dd>
-    
-    <div class="description">
-        The current page
-    </div>
-    
-
-    
-
-    
-<dl class="details">
-    
-
-    <h5 class="subsection-title">Properties:</h5>
-
-    <dl>
-
-<table class="props table table-striped">
-    <thead>
-    <tr>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Page</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-</dl>
-
-    
-
-	
-
-	
-
-	
-
-    
-
-    
-
-    
-
-    
-
-	
-
-	
-
-	
-
-	
-
-	
-
-
-
-	
-	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
-	<dd class="tag-source">
-		<ul class="dummy">
-			<li>
-				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-38">line 38</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-70">line 70</a>
 			</li>
 		</ul>
 	</dd>
@@ -558,7 +448,7 @@
             
 <hr>
 <dt class="name" id="_defaultPage">
-    <h4><span class="type-signature">&lt;private> </span>_defaultPage<span class="type-signature"></span></h4>
+    <h4 id="_defaultPage"><span class="type-signature">&lt;private> </span>_defaultPage<span class="type-signature"></span></h4>
 
     
 </dt>
@@ -656,7 +546,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-69">line 69</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-64">line 64</a>
 			</li>
 		</ul>
 	</dd>
@@ -677,7 +567,7 @@
             
 <hr>
 <dt class="name" id="_display">
-    <h4><span class="type-signature">&lt;private> </span>_display<span class="type-signature"></span></h4>
+    <h4 id="_display"><span class="type-signature">&lt;private> </span>_display<span class="type-signature"></span></h4>
 
     
 </dt>
@@ -775,7 +665,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-63">line 63</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-58">line 58</a>
 			</li>
 		</ul>
 	</dd>
@@ -796,7 +686,7 @@
             
 <hr>
 <dt class="name" id="_document">
-    <h4><span class="type-signature">&lt;private> </span>_document<span class="type-signature"></span></h4>
+    <h4 id="_document"><span class="type-signature">&lt;private> </span>_document<span class="type-signature"></span></h4>
 
     
 </dt>
@@ -894,7 +784,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-57">line 57</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-52">line 52</a>
 			</li>
 		</ul>
 	</dd>
@@ -915,7 +805,7 @@
             
 <hr>
 <dt class="name" id="_editor">
-    <h4><span class="type-signature"></span>_editor<span class="type-signature"></span></h4>
+    <h4 id="_editor"><span class="type-signature"></span>_editor<span class="type-signature"></span></h4>
 
     
 </dt>
@@ -1013,7 +903,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-50">line 50</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-44">line 44</a>
 			</li>
 		</ul>
 	</dd>
@@ -1034,7 +924,7 @@
             
 <hr>
 <dt class="name" id="_pages">
-    <h4><span class="type-signature"></span>_pages<span class="type-signature"></span></h4>
+    <h4 id="_pages"><span class="type-signature"></span>_pages<span class="type-signature"></span></h4>
 
     
 </dt>
@@ -1132,7 +1022,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-44">line 44</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-38">line 38</a>
 			</li>
 		</ul>
 	</dd>
@@ -1153,7 +1043,7 @@
             
 <hr>
 <dt class="name" id="CURSOR_POSITION">
-    <h4><span class="type-signature"></span>CURSOR_POSITION<span class="type-signature"> :object</span></h4>
+    <h4 id="CURSOR_POSITION"><span class="type-signature"></span>CURSOR_POSITION<span class="type-signature"> :object</span></h4>
 
     
 </dt>
@@ -1290,7 +1180,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-95">line 95</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-89">line 89</a>
 			</li>
 		</ul>
 	</dd>
@@ -1314,6 +1204,230 @@
         <h3 class="subsection-title">Methods</h3>
 
         <dl>
+            
+<hr>
+<dt>
+    <h4 class="name" id="contentIsEmpty"><span class="type-signature"></span>contentIsEmpty()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        Returns if the paginators content is empty
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
+				 <a href="classes_Paginator.js.html#sunlight-1-line-202">line 202</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+<div class="param-desc">
+    is empty
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">boolean</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="currentContent"><span class="type-signature"></span>currentContent()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        Returns the current content.
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
+				 <a href="classes_Paginator.js.html#sunlight-1-line-213">line 213</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+<div class="param-desc">
+    pages content
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
             
 <hr>
 <dt>
@@ -1372,7 +1486,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-131">line 131</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-227">line 227</a>
 			</li>
 		</ul>
 	</dd>
@@ -1402,6 +1516,118 @@
             
 <div class="param-desc">
     the current page loaded in editor
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Page</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="getFocusedPage"><span class="type-signature"></span>getFocusedPage()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        Get the focused page
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
+				 <a href="classes_Paginator.js.html#sunlight-1-line-236">line 236</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+<div class="param-desc">
+    the focused page loaded in editor
 </div>
 
 
@@ -1484,7 +1710,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-192">line 192</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-308">line 308</a>
 			</li>
 		</ul>
 	</dd>
@@ -1646,7 +1872,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-143">line 143</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-259">line 259</a>
 			</li>
 		</ul>
 	</dd>
@@ -1788,7 +2014,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-170">line 170</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-286">line 286</a>
 			</li>
 		</ul>
 	</dd>
@@ -1900,7 +2126,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-179">line 179</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-295">line 295</a>
 			</li>
 		</ul>
 	</dd>
@@ -2012,7 +2238,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-343">line 343</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-462">line 462</a>
 			</li>
 		</ul>
 	</dd>
@@ -2040,11 +2266,20 @@
     <h5>Returns:</h5>
     
             
-<div class="param-desc">
-    void
-</div>
 
 
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">undefined</span>
+
+
+
+    </dd>
+</dl>
 
 
         
@@ -2056,7 +2291,7 @@
             
 <hr>
 <dt>
-    <h4 class="name" id="gotoNext"><span class="type-signature"></span>gotoNext(<span class="optional">cursorPosition</span>)</h4>
+    <h4 class="name" id="gotoNext"><span class="type-signature"></span>gotoNext( [cursorPosition])</h4>
     
     
 </dt>
@@ -2173,7 +2408,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-379">line 379</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-498">line 498</a>
 			</li>
 		</ul>
 	</dd>
@@ -2233,7 +2468,7 @@
             
 <hr>
 <dt>
-    <h4 class="name" id="gotoPage"><span class="type-signature"></span>gotoPage(toPage, <span class="optional">cursorPosition</span>)</h4>
+    <h4 class="name" id="gotoPage"><span class="type-signature"></span>gotoPage(toPage [, cursorPosition])</h4>
     
     
 </dt>
@@ -2382,7 +2617,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-207">line 207</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-323">line 323</a>
 			</li>
 		</ul>
 	</dd>
@@ -2410,11 +2645,20 @@
     <h5>Returns:</h5>
     
             
-<div class="param-desc">
-    void
-</div>
 
 
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">undefined</span>
+
+
+
+    </dd>
+</dl>
 
 
         
@@ -2426,7 +2670,7 @@
             
 <hr>
 <dt>
-    <h4 class="name" id="gotoPrevious"><span class="type-signature"></span>gotoPrevious(<span class="optional">cursorPosition</span>)</h4>
+    <h4 class="name" id="gotoPrevious"><span class="type-signature"></span>gotoPrevious( [cursorPosition])</h4>
     
     
 </dt>
@@ -2543,7 +2787,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-367">line 367</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-486">line 486</a>
 			</li>
 		</ul>
 	</dd>
@@ -2658,7 +2902,223 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-102">line 102</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-96">line 96</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">undefined</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="initPages"><span class="type-signature"></span>initPages()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        Create new pages for paginator.
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
+				 <a href="classes_Paginator.js.html#sunlight-1-line-120">line 120</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">undefined</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="isDirty"><span class="type-signature"></span>isDirty()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        Check if the initial_snapshot has changed.
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
+				 <a href="classes_Paginator.js.html#sunlight-1-line-182">line 182</a>
 			</li>
 		</ul>
 	</dd>
@@ -2687,10 +3147,775 @@
     
             
 <div class="param-desc">
-    void
+    true if it's dirty
 </div>
 
 
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">boolean</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="isEmpty"><span class="type-signature"></span>isEmpty()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        Returns if the paginator is empty
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
+				 <a href="classes_Paginator.js.html#sunlight-1-line-191">line 191</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+<div class="param-desc">
+    is empty
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">boolean</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="removePage"><span class="type-signature"></span>removePage(page)</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        Removes the page from paginator available pages (Custom Method).
+    </div>
+    
+
+    
+
+    
+
+    
+    
+        <h5>Parameters:</h5>
+        
+
+<table class="params table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>page</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Page</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The page to be removed.</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
+				 <a href="classes_Paginator.js.html#sunlight-1-line-618">line 618</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">undefined</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="setInitialSnapshot"><span class="type-signature"></span>setInitialSnapshot()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        Set an initial snapshot of the content. Should be called in #init()
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
+				 <a href="classes_Paginator.js.html#sunlight-1-line-173">line 173</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">undefined</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="toggleHeadersAndFooters"><span class="type-signature"></span>toggleHeadersAndFooters(first_invalidation)</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        Toggle the state of headers and footers according the settings
+    </div>
+    
+
+    
+
+    
+
+    
+    
+        <h5>Parameters:</h5>
+        
+
+<table class="params table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>first_invalidation</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Boolean</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">define wheter is the first invalidation or not</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
+				 <a href="classes_Paginator.js.html#sunlight-1-line-606">line 606</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">undefined</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="updatePages"><span class="type-signature"></span>updatePages()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        Load or create new pages for paginator.
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
+				 <a href="classes_Paginator.js.html#sunlight-1-line-147">line 147</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">undefined</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="updateScrollPosition"><span class="type-signature"></span>updateScrollPosition()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        Updates the scroll position using the current selected node.
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
+				 <a href="classes_Paginator.js.html#sunlight-1-line-577">line 577</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">undefined</span>
+
+
+
+    </dd>
+</dl>
 
 
         
@@ -2757,7 +3982,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="classes_Paginator.js.html">classes/Paginator.js</a>,
-				 <a href="classes_Paginator.js.html#sunlight-1-line-391">line 391</a>
+				 <a href="classes_Paginator.js.html#sunlight-1-line-509">line 509</a>
 			</li>
 		</ul>
 	</dd>
@@ -2780,44 +4005,25 @@
     
 
     
-    <h5>Throws:</h5>
-    
-            
-
-<dl>
-    <dt>
-        <div class="param-desc">
-        if `currentHeight` fall down to zero meaning the link with DOM element is broken
-        </div>
-    </dt>
-    <dt>
-        <dl>
-            <dt>
-                Type
-            </dt>
-            <dd>
-                
-<span class="param-type"><a href="global.html#InvalidPageHeightError">InvalidPageHeightError</a></span>
-
-
-
-            </dd>
-        </dl>
-    </dt>
-</dl>
-
-
-        
 
     
     <h5>Returns:</h5>
     
             
-<div class="param-desc">
-    void
-</div>
 
 
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">undefined</span>
+
+
+
+    </dd>
+</dl>
 
 
         
@@ -2852,20 +4058,22 @@
 </div>
 </div>
 
-<div class="modal fade" id="searchResults">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-        <h4 class="modal-title">Search results</h4>
-      </div>
-      <div class="modal-body"></div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-      </div>
-    </div><!-- /.modal-content -->
-  </div><!-- /.modal-dialog -->
-</div>
+
+    <div class="modal fade" id="searchResults">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title">Search results</h4>
+          </div>
+          <div class="modal-body"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div>
+
 
 <footer>
 
@@ -2877,9 +4085,9 @@
 	</span>
 
 <span class="jsdoc-message">
-	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a>
+	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.4</a>
 	
-		on 21/04/2016
+		on 25/08/2017
 	
 	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
 </span>
@@ -2887,7 +4095,9 @@
 
 <script src="scripts/docstrap.lib.js"></script>
 <script src="scripts/toc.js"></script>
-<script type="text/javascript" src="scripts/fulltext-search-ui.js"></script>
+
+    <script type="text/javascript" src="scripts/fulltext-search-ui.js"></script>
+
 
 <script>
 $( function () {
@@ -2897,7 +4107,7 @@ $( function () {
 		$this.attr( "id", $this.attr( "id" ).replace( "$", "__" ) );
 	} );
 
-	$( ".tutorial-section pre, .readme-section pre" ).each( function () {
+	$( ".tutorial-section pre, .readme-section pre, pre.prettyprint.source" ).each( function () {
 		var $this = $( this );
 
 		var example = $this.find( "code" );
@@ -2933,8 +4143,7 @@ $( function () {
 	} );
 	$( "#toc" ).toc( {
 		anchorName  : function ( i, heading, prefix ) {
-			var id = $( heading ).attr( "id" );
-			return id && id.replace(/\~/g, '-inner-').replace(/\./g, '-static-') || ( prefix + i );
+			return $( heading ).attr( "id" ) || ( prefix + i );
 		},
 		selectors   : "#toc-content h1,#toc-content h2,#toc-content h3,#toc-content h4",
 		showAndHide : false,
@@ -2995,11 +4204,13 @@ $( function () {
 <!--Google Analytics-->
 
 
-<script type="text/javascript">
-	$(document).ready(function() {
-		SearcherDisplay.init();
-	});
-</script>
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            SearcherDisplay.init();
+        });
+    </script>
+
 
 </body>
 </html>
