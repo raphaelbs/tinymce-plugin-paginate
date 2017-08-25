@@ -43,7 +43,7 @@ module.exports = function (grunt) {
         },
         js: {
           files: ['src/**/*.js'],
-          tasks: ['jshint:js','browserify','watch'],
+          tasks: ['jshint:js','browserify','copy:to_project','watch'],
         }
       },
       bump: {
@@ -64,7 +64,16 @@ module.exports = function (grunt) {
           regExp: false
         }
       },
+      copy: {
+        "to_project": {
+          files: [
+            {src: ['plugin.js', 'plugin.min.js'], dest: 'C:/inetpub/wwwroot/appsLifesys/LifesysClinica/2-Execução/appManutencao/lib/js/tinymce/plugins/paginate/', flatten: true, expand: true}
+          ]
+        }
+      }
     });
+
+    grunt.loadNpmTasks('grunt-contrib-copy');
 
     grunt.registerTask('jsdoc', function(){
       shell.exec('npm run jsdoc');
@@ -72,7 +81,9 @@ module.exports = function (grunt) {
 
     grunt.registerTask('build', ['jshint', 'browserify', 'uglify', 'jsdoc']);
 
-    grunt.registerTask('dev', ['jshint', 'browserify', 'watch']);
+    grunt.registerTask('dev', ['jshint', 'browserify', 'copy:to_project', 'watch']);
+
+    grunt.registerTask('copy-to-project', ["copy:to_project"]);
 
     grunt.registerTask('default', ['dev']);
 };

@@ -15,6 +15,9 @@ function Display(_document) {
    * @property {Element}
    */
   this._testDPIElement = null;
+  /**
+   * @property {Node}
+   */
   this.document = _document;
   this._setScreenDPI();
 }

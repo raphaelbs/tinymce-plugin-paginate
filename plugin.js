@@ -23,6 +23,9 @@ function Display(_document) {
    * @property {Element}
    */
   this._testDPIElement = null;
+  /**
+   * @property {Node}
+   */
   this.document = _document;
   this._setScreenDPI();
 }
@@ -193,7 +196,7 @@ Page.prototype.MARGIN_Y = 16;
  * Getter-setter for page div content Element
  * @method
  * @param {DOMElement} wrappedPageDiv The content to fill the page
- * @return {DOMElement|void} The page div Element to return in getter usage
+ * @return {DOMElement|undefined} The page div Element to return in getter usage
  */
 Page.prototype.content = function (wrappedPageDiv) {
   if (!wrappedPageDiv) {
@@ -206,7 +209,7 @@ Page.prototype.content = function (wrappedPageDiv) {
 /**
  * Get only inner content excluding headers and footers
  * @method
- * @return {DOMElement|void} The page div Element to return in getter usage
+ * @return {DOMElement|undefined} The page div Element to return in getter usage
  */
 Page.prototype.innerContent = function () {
   if (this._content) {
@@ -218,7 +221,7 @@ Page.prototype.innerContent = function () {
  * Set headers and footers according to settings
  * @method
  * @param {Boolean} firstHeaderAndFooter mannual control over the first initilization
- * @return void
+ * @return {undefined}
  */
 Page.prototype.setHeadersAndFooters = function () {
   var that = this;
@@ -312,7 +315,9 @@ Page.prototype.setHeadersAndFooters = function () {
 
   /**
    * Disable mouse selection for header and footer.
+   * @ignore
    * @param {HTMLElement} el should be header and footer elements
+   * @return {undefined}
    */
   function disableSelection(el) {
     $(el).css({
@@ -328,7 +333,9 @@ Page.prototype.setHeadersAndFooters = function () {
 
   /**
    * Insert HTML content into header DOM element.
+   * @ignore
    * @param {HTMLElement} header virtual header DOM element
+   * @return {undefined}
    */
   function insertHeaderData(header, headerAndFooterEnabled) {
     var _configs = that._editor.settings.paginate_configs();
@@ -339,7 +346,9 @@ Page.prototype.setHeadersAndFooters = function () {
   }
   /**
    * Insert HTML content into header DOM element.
+   * @ignore
    * @param {HTMLElement} footer virtual header DOM element
+   * @return {undefined}
    */
   function insertFooterData(footer, headerAndFooterEnabled) {
     var _configs = that._editor.settings.paginate_configs();
@@ -367,7 +376,7 @@ Page.prototype.contentIsEmpty = function () {
 /**
  * Clean all content from this page
  * @method
- * @return {void}
+ * @return {undefined}
  */
 Page.prototype.clean = function () {
   if (this._content) {
@@ -568,7 +577,7 @@ Page.prototype.getContentHeight = function () {
  * Set the default paddings of a page
  * @method
  * @private
- * @return void
+ * @return {undefined}
  */
 var _setPaddings = function () {
   var that = this;
@@ -714,7 +723,7 @@ Paginator.prototype.CURSOR_POSITION = { ORIGIN: 'ORIGIN', END: 'END' };
 /**
  * Initialize the paginator. The editor and its content has to be loaded before initialize the paginator
  * @method
- * @return void
+ * @return {undefined}
  */
 Paginator.prototype.init = function () {
   var that = this;
@@ -791,7 +800,7 @@ Paginator.prototype.updatePages = function () {
 /**
  * Set an initial snapshot of the content. Should be called in #init()
  * @method
- * @return {void}
+ * @return {undefined}
  */
 Paginator.prototype.setInitialSnapshot = function () {
   this._initial_snapshot = this.currentContent();
@@ -941,7 +950,7 @@ Paginator.prototype.getNext = function () {
  * @method
  * @param {Page} toPage - The page to navigate to
  * @param {string} [cursorPosition] - The requested cursor  position to set after navigating to
- * @return void
+ * @return {undefined}
  */
 Paginator.prototype.gotoPage = function (toPage, cursorPosition) {
 
@@ -1080,7 +1089,7 @@ Paginator.prototype.gotoPage = function (toPage, cursorPosition) {
 /**
  * Go to the page having the focus
  * @method
- * @return void
+ * @return {undefined}
  */
 Paginator.prototype.gotoFocusedPage = function () {
   var focusedPage, focusedDiv;
@@ -1127,8 +1136,7 @@ Paginator.prototype.gotoNext = function (cursorPosition) {
 /**
  * Watch the current page, to check if content overflows the page's max-height.
  * @method
- * @return void
- * @throws {InvalidPageHeightError} if `currentHeight` fall down to zero meaning the link with DOM element is broken
+ * @return {undefined}
  */
 Paginator.prototype.watchPage = function () {
   var _nodes = [], _generalIndex = 0, _self_paginator = this, _configs = _self_paginator._editor.settings.paginate_configs();
@@ -1195,6 +1203,8 @@ Paginator.prototype.watchPage = function () {
 
 /**
  * Updates the scroll position using the current selected node.
+ * @method
+ * @return {undefined}
  */
 Paginator.prototype.updateScrollPosition = function () {
   var _self_paginator = this,
@@ -1212,12 +1222,40 @@ Paginator.prototype.updateScrollPosition = function () {
     if (_bodyPrevOffsetTop !== _bodyOffsetTop) $(_self_paginator._body).scrollTop(_bodyPrevOffsetTop);
     return;
   }
-  //var normalizer = _self_paginator._previousNodeOffsetTop >= _nodeOffsetTop ? 0 : (_iframeHeight - _nodeHeight);
   var normalizer = _nodeOffsetTop < _bodyPrevOffsetTop ? 0 : (_iframeHeight - _nodeHeight);
 
   // Update scroll position
   $(_self_paginator._body).scrollTop(_nodeOffsetTop - normalizer);
   _self_paginator._previousNodeOffsetTop = _nodeOffsetTop;
+};
+
+/**
+ * Toggle the state of headers and footers according the settings
+ * @method
+ * @param {Boolean} first_invalidation define wheter is the first invalidation or not
+ * @return {undefined}
+ */
+Paginator.prototype.toggleHeadersAndFooters = function () {
+  var that = this;
+  $.each(this.getPages(), function (i, page) { page.setHeadersAndFooters(); });
+  that.watchPage();
+};
+
+/**
+ * Removes the page from paginator available pages (Custom Method).
+ * @method
+ * @param {Page} page - The page to be removed.
+ * @returns {undefined}
+ */
+Paginator.prototype.removePage = function (page) {
+  var that = this;
+  $.each(that.getPages(), function (i, el) {
+    if (el.rank === page.rank) {
+      $(page.content()).remove();
+      that.getPages().splice(i, 1);
+      return false;
+    }
+  });
 };
 
 /**
@@ -1235,23 +1273,6 @@ function _relativeOffsetTop(node, stopClass, height) {
   return _relativeOffsetTop(node.parentNode, stopClass, height);
 }
 
-/**
- * Removes the page from paginator available pages (Custom Method).
- * @method
- * @private
- * @param {Page} page - The page to be removed.
- * @returns void
- */
-Paginator.prototype.removePage = function (page) {
-  var that = this;
-  $.each(that.getPages(), function (i, el) {
-    if (el.rank === page.rank) {
-      $(page.content()).remove();
-      that.getPages().splice(i, 1);
-      return false;
-    }
-  });
-};
 
 /**
  * Get the currently focused page div
@@ -1317,18 +1338,6 @@ var _createEmptyDivWrapper = function (pageRank) {
 };
 
 /**
- * Toggle the state of headers and footers according the settings
- * @method
- * @param {Boolean} first_invalidation define wheter is the first invalidation or not
- * @return void
- */
-Paginator.prototype.toggleHeadersAndFooters = function () {
-  var that = this;
-  $.each(this.getPages(), function (i, page) { page.setHeadersAndFooters(); });
-  that.watchPage();
-};
-
-/**
  * Create the next page with or without a content to put in, and append it to the paginator available pages.
  * @method
  * @private
@@ -1346,6 +1355,14 @@ var _createNextPage = function (contentNodeList, fromPage) {
   return _createNexPageFromRank.call(this, divWrapper[0], nextRank);
 };
 
+/**
+ * Create the next page with or without a content to put in, and append it to the paginator available pages.
+ * @method
+ * @private
+ * @param {NodeList} contentNodeList The optional node list to put in the new next page.
+ * @param {Number} nextRank The new page rank.
+ * @returns {Page} The just created page
+ */
 var _createNexPageFromRank = function (contentNodeList, nextRank) {
   var newPage = new Page(this._defaultPage.format().label, this._defaultPage.orientation, nextRank, contentNodeList, this._editor);
   this._pages.push(newPage);
@@ -1614,6 +1631,9 @@ function tinymcePluginPaginate(editor) {
     /**
      * Mannually sanitizes editor. Deals with ranged selections.
      * @param {boolean} pd prevent default action
+     * @method
+     * @ignore
+     * @return {undefined}
      */
     function _sanitizeWithRange(pd) {
       // Remove only allowed Nodes in this range selection
@@ -1686,6 +1706,9 @@ function tinymcePluginPaginate(editor) {
      * @param {number} direction 1 for upwards (↑), 2 for downwards (↓)
      * @param {boolean} removing true for deleting (backspace/delete), false for arrowkeys
      * @param {boolean} walking true if cursor is walikng right (→) or left (←)
+     * @method
+     * @ignore
+     * @return {undefined}
      */
     function _sanitizeWithoutRange(direction, removing, walking) {
       if (direction < 0) return;
@@ -1938,7 +1961,7 @@ function tinymcePluginPaginate(editor) {
   /**
    * Plugin method that disable the wath of page (to allow edition of extenal elements like headers and footers)
    * @method
-   * @returns void
+   * @returns {undefined}
    */
   this.disableWatchPage = function () { // jshint ignore:line
     watchPageEnabled = false;
@@ -1946,7 +1969,7 @@ function tinymcePluginPaginate(editor) {
   /**
    * Plugin method that enable the wath of page (after used this#disableWatchPage())
    * @method
-   * @returns void
+   * @returns {undefined}
    */
   this.enableWatchPage = function () { // jshint ignore:line
     watchPageEnabled = true;
@@ -1954,6 +1977,7 @@ function tinymcePluginPaginate(editor) {
 
   /**
    * Get the current page
+   * @method
    * @returns {Page} the paginator current page.
    */
   this.getCurrentPage = function () { // jshint ignore:line
@@ -1962,6 +1986,7 @@ function tinymcePluginPaginate(editor) {
 
   /**
    * Returns if the editor is empty
+   * @method
    * @returns {boolean} is empty
    */
   this.isEmpty = function () { // jshint ignore:line
@@ -1970,6 +1995,7 @@ function tinymcePluginPaginate(editor) {
 
   /**
    * Returns if the editor is dirty
+   * @method
    * @returns {boolean} is dirty
    */
   this.isDirty = function () { // jshint ignore:line
@@ -1978,6 +2004,7 @@ function tinymcePluginPaginate(editor) {
 
   /**
    * Returns if the editors content is empty
+   * @method
    * @returns {boolean} is empty
    */
   this.contentIsEmpty = function () { // jshint ignore:line
@@ -1997,7 +2024,7 @@ function tinymcePluginPaginate(editor) {
 
   editor.on('remove', onRemoveEditor);
 
-  /**
+  /*
    * On editor change
    * Checks if debounce time is bigger then last changed time.
    * This debounce saves a lot processing.

@@ -22,5 +22,6 @@ Still working in progress. Jsdoc and in-line documentation are outdated.
 
 ## Contributors
 
+- [Alex Alves](https://github.com/alex250195)
 - [Lauro Mansur](https://github.com/lauromansur)
 - [Mario Vilela](https://github.com/mariolfvilela)

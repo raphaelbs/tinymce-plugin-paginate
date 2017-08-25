@@ -173,6 +173,9 @@ function tinymcePluginPaginate(editor) {
     /**
      * Mannually sanitizes editor. Deals with ranged selections.
      * @param {boolean} pd prevent default action
+     * @method
+     * @ignore
+     * @return {undefined}
      */
     function _sanitizeWithRange(pd) {
       // Remove only allowed Nodes in this range selection
@@ -245,6 +248,9 @@ function tinymcePluginPaginate(editor) {
      * @param {number} direction 1 for upwards (↑), 2 for downwards (↓)
      * @param {boolean} removing true for deleting (backspace/delete), false for arrowkeys
      * @param {boolean} walking true if cursor is walikng right (→) or left (←)
+     * @method
+     * @ignore
+     * @return {undefined}
      */
     function _sanitizeWithoutRange(direction, removing, walking) {
       if (direction < 0) return;
@@ -497,7 +503,7 @@ function tinymcePluginPaginate(editor) {
   /**
    * Plugin method that disable the wath of page (to allow edition of extenal elements like headers and footers)
    * @method
-   * @returns void
+   * @returns {undefined}
    */
   this.disableWatchPage = function () { // jshint ignore:line
     watchPageEnabled = false;
@@ -505,7 +511,7 @@ function tinymcePluginPaginate(editor) {
   /**
    * Plugin method that enable the wath of page (after used this#disableWatchPage())
    * @method
-   * @returns void
+   * @returns {undefined}
    */
   this.enableWatchPage = function () { // jshint ignore:line
     watchPageEnabled = true;
@@ -513,6 +519,7 @@ function tinymcePluginPaginate(editor) {
 
   /**
    * Get the current page
+   * @method
    * @returns {Page} the paginator current page.
    */
   this.getCurrentPage = function () { // jshint ignore:line
@@ -521,6 +528,7 @@ function tinymcePluginPaginate(editor) {
 
   /**
    * Returns if the editor is empty
+   * @method
    * @returns {boolean} is empty
    */
   this.isEmpty = function () { // jshint ignore:line
@@ -529,6 +537,7 @@ function tinymcePluginPaginate(editor) {
 
   /**
    * Returns if the editor is dirty
+   * @method
    * @returns {boolean} is dirty
    */
   this.isDirty = function () { // jshint ignore:line
@@ -537,6 +546,7 @@ function tinymcePluginPaginate(editor) {
 
   /**
    * Returns if the editors content is empty
+   * @method
    * @returns {boolean} is empty
    */
   this.contentIsEmpty = function () { // jshint ignore:line
@@ -556,7 +566,7 @@ function tinymcePluginPaginate(editor) {
 
   editor.on('remove', onRemoveEditor);
 
-  /**
+  /*
    * On editor change
    * Checks if debounce time is bigger then last changed time.
    * This debounce saves a lot processing.

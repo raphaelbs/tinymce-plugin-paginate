@@ -91,7 +91,7 @@ Paginator.prototype.CURSOR_POSITION = { ORIGIN: 'ORIGIN', END: 'END' };
 /**
  * Initialize the paginator. The editor and its content has to be loaded before initialize the paginator
  * @method
- * @return void
+ * @return {undefined}
  */
 Paginator.prototype.init = function () {
   var that = this;
@@ -168,7 +168,7 @@ Paginator.prototype.updatePages = function () {
 /**
  * Set an initial snapshot of the content. Should be called in #init()
  * @method
- * @return {void}
+ * @return {undefined}
  */
 Paginator.prototype.setInitialSnapshot = function () {
   this._initial_snapshot = this.currentContent();
@@ -318,7 +318,7 @@ Paginator.prototype.getNext = function () {
  * @method
  * @param {Page} toPage - The page to navigate to
  * @param {string} [cursorPosition] - The requested cursor  position to set after navigating to
- * @return void
+ * @return {undefined}
  */
 Paginator.prototype.gotoPage = function (toPage, cursorPosition) {
 
@@ -457,7 +457,7 @@ Paginator.prototype.gotoPage = function (toPage, cursorPosition) {
 /**
  * Go to the page having the focus
  * @method
- * @return void
+ * @return {undefined}
  */
 Paginator.prototype.gotoFocusedPage = function () {
   var focusedPage, focusedDiv;
@@ -504,8 +504,7 @@ Paginator.prototype.gotoNext = function (cursorPosition) {
 /**
  * Watch the current page, to check if content overflows the page's max-height.
  * @method
- * @return void
- * @throws {InvalidPageHeightError} if `currentHeight` fall down to zero meaning the link with DOM element is broken
+ * @return {undefined}
  */
 Paginator.prototype.watchPage = function () {
   var _nodes = [], _generalIndex = 0, _self_paginator = this, _configs = _self_paginator._editor.settings.paginate_configs();
@@ -572,6 +571,8 @@ Paginator.prototype.watchPage = function () {
 
 /**
  * Updates the scroll position using the current selected node.
+ * @method
+ * @return {undefined}
  */
 Paginator.prototype.updateScrollPosition = function () {
   var _self_paginator = this,
@@ -589,12 +590,40 @@ Paginator.prototype.updateScrollPosition = function () {
     if (_bodyPrevOffsetTop !== _bodyOffsetTop) $(_self_paginator._body).scrollTop(_bodyPrevOffsetTop);
     return;
   }
-  //var normalizer = _self_paginator._previousNodeOffsetTop >= _nodeOffsetTop ? 0 : (_iframeHeight - _nodeHeight);
   var normalizer = _nodeOffsetTop < _bodyPrevOffsetTop ? 0 : (_iframeHeight - _nodeHeight);
 
   // Update scroll position
   $(_self_paginator._body).scrollTop(_nodeOffsetTop - normalizer);
   _self_paginator._previousNodeOffsetTop = _nodeOffsetTop;
+};
+
+/**
+ * Toggle the state of headers and footers according the settings
+ * @method
+ * @param {Boolean} first_invalidation define wheter is the first invalidation or not
+ * @return {undefined}
+ */
+Paginator.prototype.toggleHeadersAndFooters = function () {
+  var that = this;
+  $.each(this.getPages(), function (i, page) { page.setHeadersAndFooters(); });
+  that.watchPage();
+};
+
+/**
+ * Removes the page from paginator available pages (Custom Method).
+ * @method
+ * @param {Page} page - The page to be removed.
+ * @returns {undefined}
+ */
+Paginator.prototype.removePage = function (page) {
+  var that = this;
+  $.each(that.getPages(), function (i, el) {
+    if (el.rank === page.rank) {
+      $(page.content()).remove();
+      that.getPages().splice(i, 1);
+      return false;
+    }
+  });
 };
 
 /**
@@ -612,23 +641,6 @@ function _relativeOffsetTop(node, stopClass, height) {
   return _relativeOffsetTop(node.parentNode, stopClass, height);
 }
 
-/**
- * Removes the page from paginator available pages (Custom Method).
- * @method
- * @private
- * @param {Page} page - The page to be removed.
- * @returns void
- */
-Paginator.prototype.removePage = function (page) {
-  var that = this;
-  $.each(that.getPages(), function (i, el) {
-    if (el.rank === page.rank) {
-      $(page.content()).remove();
-      that.getPages().splice(i, 1);
-      return false;
-    }
-  });
-};
 
 /**
  * Get the currently focused page div
@@ -694,18 +706,6 @@ var _createEmptyDivWrapper = function (pageRank) {
 };
 
 /**
- * Toggle the state of headers and footers according the settings
- * @method
- * @param {Boolean} first_invalidation define wheter is the first invalidation or not
- * @return void
- */
-Paginator.prototype.toggleHeadersAndFooters = function () {
-  var that = this;
-  $.each(this.getPages(), function (i, page) { page.setHeadersAndFooters(); });
-  that.watchPage();
-};
-
-/**
  * Create the next page with or without a content to put in, and append it to the paginator available pages.
  * @method
  * @private
@@ -723,6 +723,14 @@ var _createNextPage = function (contentNodeList, fromPage) {
   return _createNexPageFromRank.call(this, divWrapper[0], nextRank);
 };
 
+/**
+ * Create the next page with or without a content to put in, and append it to the paginator available pages.
+ * @method
+ * @private
+ * @param {NodeList} contentNodeList The optional node list to put in the new next page.
+ * @param {Number} nextRank The new page rank.
+ * @returns {Page} The just created page
+ */
 var _createNexPageFromRank = function (contentNodeList, nextRank) {
   var newPage = new Page(this._defaultPage.format().label, this._defaultPage.orientation, nextRank, contentNodeList, this._editor);
   this._pages.push(newPage);

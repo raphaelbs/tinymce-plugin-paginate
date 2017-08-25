@@ -76,7 +76,7 @@ Page.prototype.MARGIN_Y = 16;
  * Getter-setter for page div content Element
  * @method
  * @param {DOMElement} wrappedPageDiv The content to fill the page
- * @return {DOMElement|void} The page div Element to return in getter usage
+ * @return {DOMElement|undefined} The page div Element to return in getter usage
  */
 Page.prototype.content = function (wrappedPageDiv) {
   if (!wrappedPageDiv) {
@@ -89,7 +89,7 @@ Page.prototype.content = function (wrappedPageDiv) {
 /**
  * Get only inner content excluding headers and footers
  * @method
- * @return {DOMElement|void} The page div Element to return in getter usage
+ * @return {DOMElement|undefined} The page div Element to return in getter usage
  */
 Page.prototype.innerContent = function () {
   if (this._content) {
@@ -101,7 +101,7 @@ Page.prototype.innerContent = function () {
  * Set headers and footers according to settings
  * @method
  * @param {Boolean} firstHeaderAndFooter mannual control over the first initilization
- * @return void
+ * @return {undefined}
  */
 Page.prototype.setHeadersAndFooters = function () {
   var that = this;
@@ -195,7 +195,9 @@ Page.prototype.setHeadersAndFooters = function () {
 
   /**
    * Disable mouse selection for header and footer.
+   * @ignore
    * @param {HTMLElement} el should be header and footer elements
+   * @return {undefined}
    */
   function disableSelection(el) {
     $(el).css({
@@ -211,7 +213,9 @@ Page.prototype.setHeadersAndFooters = function () {
 
   /**
    * Insert HTML content into header DOM element.
+   * @ignore
    * @param {HTMLElement} header virtual header DOM element
+   * @return {undefined}
    */
   function insertHeaderData(header, headerAndFooterEnabled) {
     var _configs = that._editor.settings.paginate_configs();
@@ -222,7 +226,9 @@ Page.prototype.setHeadersAndFooters = function () {
   }
   /**
    * Insert HTML content into header DOM element.
+   * @ignore
    * @param {HTMLElement} footer virtual header DOM element
+   * @return {undefined}
    */
   function insertFooterData(footer, headerAndFooterEnabled) {
     var _configs = that._editor.settings.paginate_configs();
@@ -250,7 +256,7 @@ Page.prototype.contentIsEmpty = function () {
 /**
  * Clean all content from this page
  * @method
- * @return {void}
+ * @return {undefined}
  */
 Page.prototype.clean = function () {
   if (this._content) {
@@ -451,7 +457,7 @@ Page.prototype.getContentHeight = function () {
  * Set the default paddings of a page
  * @method
  * @private
- * @return void
+ * @return {undefined}
  */
 var _setPaddings = function () {
   var that = this;
