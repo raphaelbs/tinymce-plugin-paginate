@@ -716,7 +716,7 @@ function Paginator(pageFormatLabel, pageOrientation, ed) {
     var cmd = e.command;
 
     if (cmd === 'undo' || cmd === 'redo') {
-      that._previousBookmark =  this._editor.selection.getBookmark();
+      that._previousBookmark =  that._editor.selection.getBookmark(2, true);
     }
   });
 }
@@ -1181,6 +1181,7 @@ Paginator.prototype.watchPage = function () {
 
   // 0) save bookmark and scroll positions
   var _bookmark = this._previousBookmark || this._editor.selection.getBookmark();
+  this._previousBookmark = null;
   this.saveScrollPosition();
 
 
@@ -1256,15 +1257,10 @@ Paginator.prototype.saveScrollPosition = function (){
  * @return {undefined}
  */
 Paginator.prototype.updateScrollPosition = function () {
-  var _self_paginator = this;
-  if (_self_paginator._lockScroll) {
-    $(_self_paginator._body).scrollTop(_self_paginator._previousBodyOffSetTop);
-    _self_paginator._lockScroll = false;
-    return;
-  }
-
-  var _sel = _self_paginator._editor.selection.getSel().baseNode,
-    _normalizedNode = _sel.nodeType === 1 ? _sel : _sel.parentNode,
+  var _self_paginator = this, _sel = _self_paginator._editor.selection.getSel().anchorNode;
+  _sel = _sel.className && _sel.className.contains('pageFooter') ? _sel.previousElementSibling : _sel;
+  _sel = _sel.className && _sel.className.contains('pageHeader') ? _sel.nextElementSibling : _sel;
+  var _normalizedNode = _sel.nodeType === 1 ? _sel : _sel.parentNode,
     _nodeOffsetTop = _relativeOffsetTop(_normalizedNode, 'preventdelete'),
     _nodeHeight = $(_normalizedNode).outerHeight(true),
     _iframeHeight = Math.ceil($(_self_paginator._editor.iframeElement).height()),
@@ -1769,7 +1765,7 @@ function tinymcePluginPaginate(editor) {
       if (direction < 0) return;
 
       var _siblingPage, _pageContent, _isBoundary,
-        _normalizedNode = _sel.baseNode.nodeType === 3 ? _sel.baseNode.parentNode : _sel.baseNode, _pd = false;
+        _normalizedNode = _sel.anchorNode.nodeType === 3 ? _sel.anchorNode.parentNode : _sel.anchorNode, _pd = false;
 
       // check if cursor is in a boundary element of the page
       function _isInBoundary(nodeSibling) {

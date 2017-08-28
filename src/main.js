@@ -256,7 +256,7 @@ function tinymcePluginPaginate(editor) {
       if (direction < 0) return;
 
       var _siblingPage, _pageContent, _isBoundary,
-        _normalizedNode = _sel.baseNode.nodeType === 3 ? _sel.baseNode.parentNode : _sel.baseNode, _pd = false;
+        _normalizedNode = _sel.anchorNode.nodeType === 3 ? _sel.anchorNode.parentNode : _sel.anchorNode, _pd = false;
 
       // check if cursor is in a boundary element of the page
       function _isInBoundary(nodeSibling) {
