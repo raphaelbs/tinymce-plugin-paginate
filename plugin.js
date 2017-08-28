@@ -170,7 +170,57 @@ function Page(formatLabel, orientation, rank, wrappedPageDiv, ed) {
    */
   this._display = new Display(ed.getDoc());
 
-  _setPaddings.call(this);
+  var cm1 = Math.ceil(Number(this._display.mm2px(10)) - 1); // -1 is the dirty fix mentionned in the todo tag
+
+  /**
+   * Spacings with headers
+   * @property {SpacingsWithHeaders}
+   */
+  this.spacingsWithHeaders = {
+    page: {
+      pTop: cm1 * 5, // will match the header outer height
+      pRight: cm1,
+      pBottom: cm1 * 3, // will match the footer outer height
+      pLeft: cm1,
+      sumHeight: function () { return this.pTop + this.pBottom; },
+      sumWidth: function () { return this.pRight + this.pLeft; }
+    }
+  };
+  // header
+  this.spacingsWithHeaders.header = {
+    pTop: cm1,
+    mRight: this.spacingsWithHeaders.page.pRight,
+    pBottom: cm1,
+    mLeft: this.spacingsWithHeaders.page.pLeft,
+    mBottom: Math.ceil(cm1 / 2),
+    sumHeight: function () { return this.pTop + this.pBottom + this.mBottom + 1; } // 1px = border
+  };
+  this.spacingsWithHeaders.header.height = this.spacingsWithHeaders.page.pTop - this.spacingsWithHeaders.header.sumHeight();
+  // footer
+  this.spacingsWithHeaders.footer = {
+    pTop: Math.ceil(cm1 / 2),
+    mRight: this.spacingsWithHeaders.page.pRight,
+    pBottom: Math.ceil(cm1 / 2),
+    mLeft: this.spacingsWithHeaders.page.pLeft,
+    mTop: Math.ceil(cm1 / 2),
+    sumHeight: function () { return this.pTop + this.pBottom + this.mTop + 1; } // 1px = border
+  };
+  this.spacingsWithHeaders.footer.height = this.spacingsWithHeaders.page.pBottom - this.spacingsWithHeaders.footer.sumHeight();
+
+  /**
+   * Spacings without headers
+   * @property {SpacingsWithoutHeaders}
+   */
+  this.spacingsWithoutHeaders = {
+    page: {
+      pTop: cm1 * 3,
+      pRight: cm1,
+      pBottom: cm1 * 2,
+      pLeft: cm1,
+      sumHeight: function () { return this.pTop + this.pBottom; },
+      sumWidth: function () { return this.pRight + this.pLeft; }
+    }
+  };
 
   this.format(formatLabel);
   this.orientate(orientation);
@@ -370,7 +420,7 @@ Page.prototype.contentIsEmpty = function () {
   if (innerContent) {
     content += innerContent.text().replace(/\r?\n|\r/igm).replace(/^\s*$/igm, '').length;
   }
-  return innerContent.length === 0;
+  return content === 0;
 };
 
 /**
@@ -573,61 +623,6 @@ Page.prototype.getContentHeight = function () {
   return contentHeight;
 };
 
-/**
- * Set the default paddings of a page
- * @method
- * @private
- * @return {undefined}
- */
-var _setPaddings = function () {
-  var that = this;
-  var cm1 = Math.ceil(Number(this._display.mm2px(10)) - 1); // -1 is the dirty fix mentionned in the todo tag
-
-  // spacings with headers
-  this.spacingsWithHeaders = {
-    page: {
-      pTop: cm1 * 5, // will match the header outer height
-      pRight: cm1,
-      pBottom: cm1 * 3, // will match the footer outer height
-      pLeft: cm1,
-      sumHeight: function () { return this.pTop + this.pBottom; },
-      sumWidth: function () { return this.pRight + this.pLeft; }
-    }
-  };
-  // header
-  this.spacingsWithHeaders.header = {
-    pTop: cm1,
-    mRight: this.spacingsWithHeaders.page.pRight,
-    pBottom: cm1,
-    mLeft: this.spacingsWithHeaders.page.pLeft,
-    mBottom: Math.ceil(cm1 / 2),
-    sumHeight: function () { return this.pTop + this.pBottom + this.mBottom + 1; } // 1px = border
-  };
-  this.spacingsWithHeaders.header.height = this.spacingsWithHeaders.page.pTop - this.spacingsWithHeaders.header.sumHeight();
-  // footer
-  this.spacingsWithHeaders.footer = {
-    pTop: Math.ceil(cm1 / 2),
-    mRight: this.spacingsWithHeaders.page.pRight,
-    pBottom: Math.ceil(cm1 / 2),
-    mLeft: this.spacingsWithHeaders.page.pLeft,
-    mTop: Math.ceil(cm1 / 2),
-    sumHeight: function () { return this.pTop + this.pBottom + this.mTop + 1; } // 1px = border
-  };
-  this.spacingsWithHeaders.footer.height = this.spacingsWithHeaders.page.pBottom - this.spacingsWithHeaders.footer.sumHeight();
-
-  // spacings without headers
-  this.spacingsWithoutHeaders = {
-    page: {
-      pTop: cm1 * 3,
-      pRight: cm1,
-      pBottom: cm1 * 2,
-      pLeft: cm1,
-      sumHeight: function () { return this.pTop + this.pBottom; },
-      sumWidth: function () { return this.pRight + this.pLeft; }
-    }
-  };
-};
-
 module.exports = Page;
 },{"../utils/page-formats":8,"./Display":2}],4:[function(require,module,exports){
 /**
@@ -700,7 +695,30 @@ function Paginator(pageFormatLabel, pageOrientation, ed) {
    * @private
    */
   this._body = this._document.getElementsByTagName('body');
+  /**
+   * Previous body's scroll offset. 
+   * @property {Number}
+   * @private
+   */
+  this._previousBodyOffSetTop = 0;
+  /**
+   * 
+   * @property {Bookmark}
+   * @private
+   */
+  this._previousBookmark = null;
+  /*
+   * Saves previous node before undo and redo.
+   * This node is used to scroll correctly after this operations.
+   */
+  var that = this;
+  this._editor.on('BeforeExecCommand', function (e) {
+    var cmd = e.command;
 
+    if (cmd === 'undo' || cmd === 'redo') {
+      that._previousBookmark =  this._editor.selection.getBookmark();
+    }
+  });
 }
 
 Paginator.prototype.destroy = function () {
@@ -1083,7 +1101,27 @@ Paginator.prototype.gotoPage = function (toPage, cursorPosition) {
     });
 
   }
+};
 
+/**
+ * Go to the page having the focus
+ * @method
+ * @return {undefined}
+ */
+Paginator.prototype.gotoBeginning = function () {
+  var focusedPage, focusedDiv;
+
+  try {
+    var pageRank;
+    focusedDiv = _getFocusedPageDiv.call(this);
+    pageRank = $(focusedDiv).attr('data-paginator-page-rank');
+    focusedPage = this.getPage(pageRank);
+  } catch (e) {
+    // if there is no focused page div, focus to the first page
+    focusedPage = this.getPage(1);
+  } finally {
+    this.gotoPage(focusedPage, this.CURSOR_POSITION.END);
+  }
 };
 
 /**
@@ -1142,8 +1180,8 @@ Paginator.prototype.watchPage = function () {
   var _nodes = [], _generalIndex = 0, _self_paginator = this, _configs = _self_paginator._editor.settings.paginate_configs();
 
   // 0) save bookmark and scroll positions
-  var _bookmark = this._editor.selection.getBookmark();
-  _self_paginator._previousBodyOffSetTop = $(_self_paginator._body).scrollTop();
+  var _bookmark = this._previousBookmark || this._editor.selection.getBookmark();
+  this.saveScrollPosition();
 
 
   // 1) get defaultHeight from page
@@ -1202,13 +1240,30 @@ Paginator.prototype.watchPage = function () {
 };
 
 /**
- * Updates the scroll position using the current selected node.
+ * Saves scroll position relative to the body of tinymce's iframe.
  * @method
  * @return {undefined}
  */
+Paginator.prototype.saveScrollPosition = function (){
+  this._previousBodyOffSetTop = $(this._body).scrollTop();
+};
+
+/**
+ * Updates the scroll position using the current selected node.
+ * It's called for each cycle of [Paginator.watchPage()]{@link #watchPage}.
+ * @method
+ * @param {Boolean}
+ * @return {undefined}
+ */
 Paginator.prototype.updateScrollPosition = function () {
-  var _self_paginator = this,
-    _sel = _self_paginator._editor.selection.getSel().baseNode,
+  var _self_paginator = this;
+  if (_self_paginator._lockScroll) {
+    $(_self_paginator._body).scrollTop(_self_paginator._previousBodyOffSetTop);
+    _self_paginator._lockScroll = false;
+    return;
+  }
+
+  var _sel = _self_paginator._editor.selection.getSel().baseNode,
     _normalizedNode = _sel.nodeType === 1 ? _sel : _sel.parentNode,
     _nodeOffsetTop = _relativeOffsetTop(_normalizedNode, 'preventdelete'),
     _nodeHeight = $(_normalizedNode).outerHeight(true),
@@ -1956,6 +2011,14 @@ function tinymcePluginPaginate(editor) {
    */
   var watchPageEnabled = false;
 
+
+  /**
+   * Saves scroll position before Undo.
+   * @var
+   * @global
+   */
+  var scrollPositionAfterUndo = 0;
+
   // _debugEditorEvents();
 
   /**
@@ -2018,7 +2081,8 @@ function tinymcePluginPaginate(editor) {
     paginator.init();
     paginatorListens = true;
     watchPageEnabled = true;
-    paginator.gotoFocusedPage();
+    //paginator.gotoFocusedPage();
+    paginator.gotoBeginning();
     if (editor.settings.paginate_navigation_buttons) ui.appendNavigationButtons(paginator);
   });
 
@@ -2043,6 +2107,9 @@ function tinymcePluginPaginate(editor) {
     checkPreventDelete(evt);
   });
 
+  /*
+   * Watches for page content changes.
+   */
   editor.on('SetContent', function (args) {
     if (!paginator) return;
     paginator.updatePages();

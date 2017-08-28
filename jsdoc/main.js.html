@@ -54,7 +54,7 @@
 			<li class="dropdown">
 				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="global.html#display">display</a></li><li><a href="global.html#InvalidPageHeightError">InvalidPageHeightError</a></li><li><a href="global.html#paginator">paginator</a></li><li><a href="global.html#Paginator">Paginator</a></li><li><a href="global.html#paginatorListens">paginatorListens</a></li><li><a href="global.html#supportedFormats">supportedFormats</a></li><li><a href="global.html#tinymcePluginPaginate">tinymcePluginPaginate</a></li><li><a href="global.html#ui">ui</a></li><li><a href="global.html#watchPageEnabled">watchPageEnabled</a></li><li><a href="global.html#watchPageIterationsCount">watchPageIterationsCount</a></li>
+					<li><a href="global.html#display">display</a></li><li><a href="global.html#InvalidPageHeightError">InvalidPageHeightError</a></li><li><a href="global.html#Paginator">Paginator</a></li><li><a href="global.html#paginator">paginator</a></li><li><a href="global.html#paginatorListens">paginatorListens</a></li><li><a href="global.html#scrollPositionAfterUndo">scrollPositionAfterUndo</a></li><li><a href="global.html#supportedFormats">supportedFormats</a></li><li><a href="global.html#tinymcePluginPaginate">tinymcePluginPaginate</a></li><li><a href="global.html#ui">ui</a></li><li><a href="global.html#watchPageEnabled">watchPageEnabled</a></li><li><a href="global.html#watchPageIterationsCount">watchPageIterationsCount</a></li>
 				</ul>
 			</li>
 			
@@ -598,6 +598,14 @@ function tinymcePluginPaginate(editor) {
    */
   var watchPageEnabled = false;
 
+
+  /**
+   * Saves scroll position before Undo.
+   * @var
+   * @global
+   */
+  var scrollPositionAfterUndo = 0;
+
   // _debugEditorEvents();
 
   /**
@@ -685,6 +693,9 @@ function tinymcePluginPaginate(editor) {
     checkPreventDelete(evt);
   });
 
+  /*
+   * Watches for page content changes.
+   */
   editor.on('SetContent', function (args) {
     if (!paginator) return;
     paginator.updatePages();

@@ -54,7 +54,7 @@
 			<li class="dropdown">
 				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="global.html#display">display</a></li><li><a href="global.html#InvalidPageHeightError">InvalidPageHeightError</a></li><li><a href="global.html#paginator">paginator</a></li><li><a href="global.html#Paginator">Paginator</a></li><li><a href="global.html#paginatorListens">paginatorListens</a></li><li><a href="global.html#supportedFormats">supportedFormats</a></li><li><a href="global.html#tinymcePluginPaginate">tinymcePluginPaginate</a></li><li><a href="global.html#ui">ui</a></li><li><a href="global.html#watchPageEnabled">watchPageEnabled</a></li><li><a href="global.html#watchPageIterationsCount">watchPageIterationsCount</a></li>
+					<li><a href="global.html#display">display</a></li><li><a href="global.html#InvalidPageHeightError">InvalidPageHeightError</a></li><li><a href="global.html#Paginator">Paginator</a></li><li><a href="global.html#paginator">paginator</a></li><li><a href="global.html#paginatorListens">paginatorListens</a></li><li><a href="global.html#scrollPositionAfterUndo">scrollPositionAfterUndo</a></li><li><a href="global.html#supportedFormats">supportedFormats</a></li><li><a href="global.html#tinymcePluginPaginate">tinymcePluginPaginate</a></li><li><a href="global.html#ui">ui</a></li><li><a href="global.html#watchPageEnabled">watchPageEnabled</a></li><li><a href="global.html#watchPageIterationsCount">watchPageIterationsCount</a></li>
 				</ul>
 			</li>
 			
@@ -168,7 +168,30 @@ function Paginator(pageFormatLabel, pageOrientation, ed) {
    * @private
    */
   this._body = this._document.getElementsByTagName('body');
+  /**
+   * Previous body's scroll offset. 
+   * @property {Number}
+   * @private
+   */
+  this._previousBodyOffSetTop = 0;
+  /**
+   * 
+   * @property {Bookmark}
+   * @private
+   */
+  this._previousBookmark = null;
+  /*
+   * Saves previous node before undo and redo.
+   * This node is used to scroll correctly after this operations.
+   */
+  var that = this;
+  this._editor.on('BeforeExecCommand', function (e) {
+    var cmd = e.command;
 
+    if (cmd === 'undo' || cmd === 'redo') {
+      that._previousBookmark =  this._editor.selection.getBookmark();
+    }
+  });
 }
 
 Paginator.prototype.destroy = function () {
@@ -610,8 +633,8 @@ Paginator.prototype.watchPage = function () {
   var _nodes = [], _generalIndex = 0, _self_paginator = this, _configs = _self_paginator._editor.settings.paginate_configs();
 
   // 0) save bookmark and scroll positions
-  var _bookmark = this._editor.selection.getBookmark();
-  _self_paginator._previousBodyOffSetTop = $(_self_paginator._body).scrollTop();
+  var _bookmark = this._previousBookmark || this._editor.selection.getBookmark();
+  this.saveScrollPosition();
 
 
   // 1) get defaultHeight from page
@@ -670,13 +693,30 @@ Paginator.prototype.watchPage = function () {
 };
 
 /**
- * Updates the scroll position using the current selected node.
+ * Saves scroll position relative to the body of tinymce's iframe.
  * @method
  * @return {undefined}
  */
+Paginator.prototype.saveScrollPosition = function (){
+  this._previousBodyOffSetTop = $(this._body).scrollTop();
+};
+
+/**
+ * Updates the scroll position using the current selected node.
+ * It's called for each cycle of [Paginator.watchPage()]{@link #watchPage}.
+ * @method
+ * @param {Boolean}
+ * @return {undefined}
+ */
 Paginator.prototype.updateScrollPosition = function () {
-  var _self_paginator = this,
-    _sel = _self_paginator._editor.selection.getSel().baseNode,
+  var _self_paginator = this;
+  if (_self_paginator._lockScroll) {
+    $(_self_paginator._body).scrollTop(_self_paginator._previousBodyOffSetTop);
+    _self_paginator._lockScroll = false;
+    return;
+  }
+
+  var _sel = _self_paginator._editor.selection.getSel().baseNode,
     _normalizedNode = _sel.nodeType === 1 ? _sel : _sel.parentNode,
     _nodeOffsetTop = _relativeOffsetTop(_normalizedNode, 'preventdelete'),
     _nodeHeight = $(_normalizedNode).outerHeight(true),

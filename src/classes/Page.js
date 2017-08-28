@@ -50,7 +50,57 @@ function Page(formatLabel, orientation, rank, wrappedPageDiv, ed) {
    */
   this._display = new Display(ed.getDoc());
 
-  _setPaddings.call(this);
+  var cm1 = Math.ceil(Number(this._display.mm2px(10)) - 1); // -1 is the dirty fix mentionned in the todo tag
+
+  /**
+   * Spacings with headers
+   * @property {SpacingsWithHeaders}
+   */
+  this.spacingsWithHeaders = {
+    page: {
+      pTop: cm1 * 5, // will match the header outer height
+      pRight: cm1,
+      pBottom: cm1 * 3, // will match the footer outer height
+      pLeft: cm1,
+      sumHeight: function () { return this.pTop + this.pBottom; },
+      sumWidth: function () { return this.pRight + this.pLeft; }
+    }
+  };
+  // header
+  this.spacingsWithHeaders.header = {
+    pTop: cm1,
+    mRight: this.spacingsWithHeaders.page.pRight,
+    pBottom: cm1,
+    mLeft: this.spacingsWithHeaders.page.pLeft,
+    mBottom: Math.ceil(cm1 / 2),
+    sumHeight: function () { return this.pTop + this.pBottom + this.mBottom + 1; } // 1px = border
+  };
+  this.spacingsWithHeaders.header.height = this.spacingsWithHeaders.page.pTop - this.spacingsWithHeaders.header.sumHeight();
+  // footer
+  this.spacingsWithHeaders.footer = {
+    pTop: Math.ceil(cm1 / 2),
+    mRight: this.spacingsWithHeaders.page.pRight,
+    pBottom: Math.ceil(cm1 / 2),
+    mLeft: this.spacingsWithHeaders.page.pLeft,
+    mTop: Math.ceil(cm1 / 2),
+    sumHeight: function () { return this.pTop + this.pBottom + this.mTop + 1; } // 1px = border
+  };
+  this.spacingsWithHeaders.footer.height = this.spacingsWithHeaders.page.pBottom - this.spacingsWithHeaders.footer.sumHeight();
+
+  /**
+   * Spacings without headers
+   * @property {SpacingsWithoutHeaders}
+   */
+  this.spacingsWithoutHeaders = {
+    page: {
+      pTop: cm1 * 3,
+      pRight: cm1,
+      pBottom: cm1 * 2,
+      pLeft: cm1,
+      sumHeight: function () { return this.pTop + this.pBottom; },
+      sumWidth: function () { return this.pRight + this.pLeft; }
+    }
+  };
 
   this.format(formatLabel);
   this.orientate(orientation);
@@ -250,7 +300,7 @@ Page.prototype.contentIsEmpty = function () {
   if (innerContent) {
     content += innerContent.text().replace(/\r?\n|\r/igm).replace(/^\s*$/igm, '').length;
   }
-  return innerContent.length === 0;
+  return content === 0;
 };
 
 /**
@@ -451,61 +501,6 @@ Page.prototype.getContentHeight = function () {
     pageBottomPadding = Number($(this.content()).css('padding-bottom').split('px').join('')),
     contentHeight = pageBottomPadding + lastElementObj.sum();
   return contentHeight;
-};
-
-/**
- * Set the default paddings of a page
- * @method
- * @private
- * @return {undefined}
- */
-var _setPaddings = function () {
-  var that = this;
-  var cm1 = Math.ceil(Number(this._display.mm2px(10)) - 1); // -1 is the dirty fix mentionned in the todo tag
-
-  // spacings with headers
-  this.spacingsWithHeaders = {
-    page: {
-      pTop: cm1 * 5, // will match the header outer height
-      pRight: cm1,
-      pBottom: cm1 * 3, // will match the footer outer height
-      pLeft: cm1,
-      sumHeight: function () { return this.pTop + this.pBottom; },
-      sumWidth: function () { return this.pRight + this.pLeft; }
-    }
-  };
-  // header
-  this.spacingsWithHeaders.header = {
-    pTop: cm1,
-    mRight: this.spacingsWithHeaders.page.pRight,
-    pBottom: cm1,
-    mLeft: this.spacingsWithHeaders.page.pLeft,
-    mBottom: Math.ceil(cm1 / 2),
-    sumHeight: function () { return this.pTop + this.pBottom + this.mBottom + 1; } // 1px = border
-  };
-  this.spacingsWithHeaders.header.height = this.spacingsWithHeaders.page.pTop - this.spacingsWithHeaders.header.sumHeight();
-  // footer
-  this.spacingsWithHeaders.footer = {
-    pTop: Math.ceil(cm1 / 2),
-    mRight: this.spacingsWithHeaders.page.pRight,
-    pBottom: Math.ceil(cm1 / 2),
-    mLeft: this.spacingsWithHeaders.page.pLeft,
-    mTop: Math.ceil(cm1 / 2),
-    sumHeight: function () { return this.pTop + this.pBottom + this.mTop + 1; } // 1px = border
-  };
-  this.spacingsWithHeaders.footer.height = this.spacingsWithHeaders.page.pBottom - this.spacingsWithHeaders.footer.sumHeight();
-
-  // spacings without headers
-  this.spacingsWithoutHeaders = {
-    page: {
-      pTop: cm1 * 3,
-      pRight: cm1,
-      pBottom: cm1 * 2,
-      pLeft: cm1,
-      sumHeight: function () { return this.pTop + this.pBottom; },
-      sumWidth: function () { return this.pRight + this.pLeft; }
-    }
-  };
 };
 
 module.exports = Page;

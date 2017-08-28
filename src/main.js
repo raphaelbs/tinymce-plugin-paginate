@@ -498,6 +498,14 @@ function tinymcePluginPaginate(editor) {
    */
   var watchPageEnabled = false;
 
+
+  /**
+   * Saves scroll position before Undo.
+   * @var
+   * @global
+   */
+  var scrollPositionAfterUndo = 0;
+
   // _debugEditorEvents();
 
   /**
@@ -560,7 +568,8 @@ function tinymcePluginPaginate(editor) {
     paginator.init();
     paginatorListens = true;
     watchPageEnabled = true;
-    paginator.gotoFocusedPage();
+    //paginator.gotoFocusedPage();
+    paginator.gotoBeginning();
     if (editor.settings.paginate_navigation_buttons) ui.appendNavigationButtons(paginator);
   });
 
@@ -585,6 +594,9 @@ function tinymcePluginPaginate(editor) {
     checkPreventDelete(evt);
   });
 
+  /*
+   * Watches for page content changes.
+   */
   editor.on('SetContent', function (args) {
     if (!paginator) return;
     paginator.updatePages();
