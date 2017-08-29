@@ -314,6 +314,12 @@ Page.prototype.setHeadersAndFooters = function () {
   header.style.height = (spacing.top - Math.ceil(cm1 / 2)) + 'px';
   header.style.marginRight = spacingsWithHeaders.header.mRight + 'px';
   header.style.marginLeft = spacingsWithHeaders.header.mLeft + 'px';
+  /* header style */
+  header.style.position = 'absolute';
+  header.style.top = 0;
+  header.style.left = 0;
+  header.style.borderBottom = '1px dashed #ddd';
+  header.style.color = '#8d8e90';
   disableSelection(header);
 
   // Footer, with margins enabled
@@ -325,6 +331,12 @@ Page.prototype.setHeadersAndFooters = function () {
   footer.style.height = (spacing.bottom - Math.ceil(cm1 / 2)) + 'px';
   footer.style.marginRight = spacingsWithHeaders.footer.mRight + 'px';
   footer.style.marginLeft = spacingsWithHeaders.footer.mLeft + 'px';
+  /* footer style */
+  footer.style.position = 'absolute';
+  footer.style.bottom = 0;
+  footer.style.left = 0;
+  footer.style.borderTop = '1px dashed #ddd';
+  footer.style.color = '#8d8e90';
   disableSelection(footer);
 
   // Headers and footers Enabled
@@ -334,12 +346,16 @@ Page.prototype.setHeadersAndFooters = function () {
     header.style.height = spacingsWithHeaders.header.height + 'px';
     header.style.paddingTop = spacingsWithHeaders.header.pTop + 'px';
     header.style.paddingBottom = spacingsWithHeaders.header.pBottom + 'px';
+    /* header style */
+    header.style.borderBottom = '1px solid #ddd';
 
     // Footer, with headers and footers enabled
     footer.classList += ' large';
     footer.style.height = spacingsWithHeaders.footer.height + 'px';
     footer.style.paddingTop = spacingsWithHeaders.footer.pTop + 'px';
     footer.style.paddingBottom = spacingsWithHeaders.footer.pBottom + 'px';
+    /* footer style */
+    footer.style.borderTop = '1px solid #ddd';
 
     // spacing, with headers and footers enabled
     spacing.top = spacingsWithHeaders.page.pTop;
@@ -1177,12 +1193,12 @@ Paginator.prototype.gotoNext = function (cursorPosition) {
  * @return {undefined}
  */
 Paginator.prototype.watchPage = function () {
-  var _nodes = [], _generalIndex = 0, _self_paginator = this, _configs = _self_paginator._editor.settings.paginate_configs();
+  var _nodes = [], _generalIndex = 0, _self_paginator = this, _configs = _self_paginator._editor.settings.paginate_configs(); // jshint ignore:line
 
   // 0) save bookmark and scroll positions
-  var _bookmark = this._previousBookmark || this._editor.selection.getBookmark();
-  this._previousBookmark = null;
-  this.saveScrollPosition();
+  var _bookmark = _self_paginator._previousBookmark || _self_paginator._editor.selection.getBookmark();
+  _self_paginator._previousBookmark = null;
+  _self_paginator.saveScrollPosition();
 
 
   // 1) get defaultHeight from page
@@ -1236,8 +1252,18 @@ Paginator.prototype.watchPage = function () {
     if (!page.innerContent().length) return _self_paginator.removePage(page);
   });
 
+  // restore bookmark position
   _self_paginator._editor.selection.moveToBookmark(_bookmark);
+  // normalize bookmark
+  var _sel = _self_paginator._editor.selection.getSel().anchorNode;
+  if(_sel.className && _sel.className.contains('pageFooter'))
+    _bookmark.start[1]--;
+  else if(_sel.className && _sel.className.contains('pageHeader'))
+    _bookmark.start[1]++;
+  _self_paginator._editor.selection.moveToBookmark(_bookmark);
+
   _self_paginator.updateScrollPosition();
+  _self_paginator._editor.undoManager.add();
 };
 
 /**
@@ -1260,6 +1286,7 @@ Paginator.prototype.updateScrollPosition = function () {
   var _self_paginator = this, _sel = _self_paginator._editor.selection.getSel().anchorNode;
   _sel = _sel.className && _sel.className.contains('pageFooter') ? _sel.previousElementSibling : _sel;
   _sel = _sel.className && _sel.className.contains('pageHeader') ? _sel.nextElementSibling : _sel;
+  //_self_paginator._editor.selection.select(_sel);
   var _normalizedNode = _sel.nodeType === 1 ? _sel : _sel.parentNode,
     _nodeOffsetTop = _relativeOffsetTop(_normalizedNode, 'preventdelete'),
     _nodeHeight = $(_normalizedNode).outerHeight(true),
@@ -1635,13 +1662,6 @@ function tinymcePluginPaginate(editor) {
   function onPageChange(evt) {
     ui.updatePageRankInput(evt.toPage.rank);
     editor.nodeChanged();
-  }
-
-  function onRemoveEditor(evt) {
-    ui.removeNavigationButtons();
-    paginator.destroy();
-    watchPageIterationsCount = 0;
-    paginatorListens = false;
   }
 
   /**
@@ -2082,21 +2102,28 @@ function tinymcePluginPaginate(editor) {
     if (editor.settings.paginate_navigation_buttons) ui.appendNavigationButtons(paginator);
   });
 
-  editor.on('remove', onRemoveEditor);
+  editor.on('remove', function(evt) {
+    ui.removeNavigationButtons();
+    if (paginator) paginator.destroy();
+    clearTimeout(_timeout);
+    watchPageIterationsCount = 0;
+    paginatorListens = false;
+  });
 
   /*
    * On editor change
    * Checks if debounce time is bigger then last changed time.
    * This debounce saves a lot processing.
    */
-  var _change_debouce = 500, _prev_debounce = Date.now();
+  var _change_debouce = 100, _timeout;
   editor.on('change', function (evt) {
     evt.preventDefault();
-    var newContent, beforeContent;
     if (!paginatorListens || !watchPageEnabled) return;
-    if (_prev_debounce + _change_debouce > Date.now()) return;
-    _prev_debounce = Date.now();
-    paginator.watchPage();
+
+    clearTimeout(_timeout);
+    _timeout = setTimeout(function(){
+      paginator.watchPage();
+    }, _change_debouce);
   });
 
   editor.on('keydown', function (evt) {

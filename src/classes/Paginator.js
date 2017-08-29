@@ -550,12 +550,12 @@ Paginator.prototype.gotoNext = function (cursorPosition) {
  * @return {undefined}
  */
 Paginator.prototype.watchPage = function () {
-  var _nodes = [], _generalIndex = 0, _self_paginator = this, _configs = _self_paginator._editor.settings.paginate_configs();
+  var _nodes = [], _generalIndex = 0, _self_paginator = this, _configs = _self_paginator._editor.settings.paginate_configs(); // jshint ignore:line
 
   // 0) save bookmark and scroll positions
-  var _bookmark = this._previousBookmark || this._editor.selection.getBookmark();
-  this._previousBookmark = null;
-  this.saveScrollPosition();
+  var _bookmark = _self_paginator._previousBookmark || _self_paginator._editor.selection.getBookmark();
+  _self_paginator._previousBookmark = null;
+  _self_paginator.saveScrollPosition();
 
 
   // 1) get defaultHeight from page
@@ -609,8 +609,18 @@ Paginator.prototype.watchPage = function () {
     if (!page.innerContent().length) return _self_paginator.removePage(page);
   });
 
+  // restore bookmark position
   _self_paginator._editor.selection.moveToBookmark(_bookmark);
+  // normalize bookmark
+  var _sel = _self_paginator._editor.selection.getSel().anchorNode;
+  if(_sel.className && _sel.className.contains('pageFooter'))
+    _bookmark.start[1]--;
+  else if(_sel.className && _sel.className.contains('pageHeader'))
+    _bookmark.start[1]++;
+  _self_paginator._editor.selection.moveToBookmark(_bookmark);
+
   _self_paginator.updateScrollPosition();
+  _self_paginator._editor.undoManager.add();
 };
 
 /**
@@ -633,6 +643,7 @@ Paginator.prototype.updateScrollPosition = function () {
   var _self_paginator = this, _sel = _self_paginator._editor.selection.getSel().anchorNode;
   _sel = _sel.className && _sel.className.contains('pageFooter') ? _sel.previousElementSibling : _sel;
   _sel = _sel.className && _sel.className.contains('pageHeader') ? _sel.nextElementSibling : _sel;
+  //_self_paginator._editor.selection.select(_sel);
   var _normalizedNode = _sel.nodeType === 1 ? _sel : _sel.parentNode,
     _nodeOffsetTop = _relativeOffsetTop(_normalizedNode, 'preventdelete'),
     _nodeHeight = $(_normalizedNode).outerHeight(true),

@@ -128,13 +128,6 @@ function tinymcePluginPaginate(editor) {
     editor.nodeChanged();
   }
 
-  function onRemoveEditor(evt) {
-    ui.removeNavigationButtons();
-    paginator.destroy();
-    watchPageIterationsCount = 0;
-    paginatorListens = false;
-  }
-
   /**
    * Check Prevent Delete
    * ADAPTED FROM: https://stackoverflow.com/questions/29491324/how-to-prevent-delete-of-a-div-in-tinymce-editor
@@ -573,21 +566,28 @@ function tinymcePluginPaginate(editor) {
     if (editor.settings.paginate_navigation_buttons) ui.appendNavigationButtons(paginator);
   });
 
-  editor.on('remove', onRemoveEditor);
+  editor.on('remove', function(evt) {
+    ui.removeNavigationButtons();
+    if (paginator) paginator.destroy();
+    clearTimeout(_timeout);
+    watchPageIterationsCount = 0;
+    paginatorListens = false;
+  });
 
   /*
    * On editor change
    * Checks if debounce time is bigger then last changed time.
    * This debounce saves a lot processing.
    */
-  var _change_debouce = 500, _prev_debounce = Date.now();
+  var _change_debouce = 100, _timeout;
   editor.on('change', function (evt) {
     evt.preventDefault();
-    var newContent, beforeContent;
     if (!paginatorListens || !watchPageEnabled) return;
-    if (_prev_debounce + _change_debouce > Date.now()) return;
-    _prev_debounce = Date.now();
-    paginator.watchPage();
+
+    clearTimeout(_timeout);
+    _timeout = setTimeout(function(){
+      paginator.watchPage();
+    }, _change_debouce);
   });
 
   editor.on('keydown', function (evt) {

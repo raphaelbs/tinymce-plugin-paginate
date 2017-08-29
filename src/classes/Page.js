@@ -194,6 +194,12 @@ Page.prototype.setHeadersAndFooters = function () {
   header.style.height = (spacing.top - Math.ceil(cm1 / 2)) + 'px';
   header.style.marginRight = spacingsWithHeaders.header.mRight + 'px';
   header.style.marginLeft = spacingsWithHeaders.header.mLeft + 'px';
+  /* header style */
+  header.style.position = 'absolute';
+  header.style.top = 0;
+  header.style.left = 0;
+  header.style.borderBottom = '1px dashed #ddd';
+  header.style.color = '#8d8e90';
   disableSelection(header);
 
   // Footer, with margins enabled
@@ -205,6 +211,12 @@ Page.prototype.setHeadersAndFooters = function () {
   footer.style.height = (spacing.bottom - Math.ceil(cm1 / 2)) + 'px';
   footer.style.marginRight = spacingsWithHeaders.footer.mRight + 'px';
   footer.style.marginLeft = spacingsWithHeaders.footer.mLeft + 'px';
+  /* footer style */
+  footer.style.position = 'absolute';
+  footer.style.bottom = 0;
+  footer.style.left = 0;
+  footer.style.borderTop = '1px dashed #ddd';
+  footer.style.color = '#8d8e90';
   disableSelection(footer);
 
   // Headers and footers Enabled
@@ -214,12 +226,16 @@ Page.prototype.setHeadersAndFooters = function () {
     header.style.height = spacingsWithHeaders.header.height + 'px';
     header.style.paddingTop = spacingsWithHeaders.header.pTop + 'px';
     header.style.paddingBottom = spacingsWithHeaders.header.pBottom + 'px';
+    /* header style */
+    header.style.borderBottom = '1px solid #ddd';
 
     // Footer, with headers and footers enabled
     footer.classList += ' large';
     footer.style.height = spacingsWithHeaders.footer.height + 'px';
     footer.style.paddingTop = spacingsWithHeaders.footer.pTop + 'px';
     footer.style.paddingBottom = spacingsWithHeaders.footer.pBottom + 'px';
+    /* footer style */
+    footer.style.borderTop = '1px solid #ddd';
 
     // spacing, with headers and footers enabled
     spacing.top = spacingsWithHeaders.page.pTop;
