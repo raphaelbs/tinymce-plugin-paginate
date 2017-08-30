@@ -190,7 +190,7 @@ Page.prototype.setHeadersAndFooters = function () {
   header.className = 'pageHeader';
   header.contentEditable = false;
   header.onmousedown = cancelDrag;
-  header.style.width = 'calc(100% - ' + spacingsWithHeaders.page.sumWidth() + 'px)';
+  header.style.width = $(that._content).width() + 'px';
   header.style.height = (spacing.top - Math.ceil(cm1 / 2)) + 'px';
   header.style.marginRight = spacingsWithHeaders.header.mRight + 'px';
   header.style.marginLeft = spacingsWithHeaders.header.mLeft + 'px';
@@ -207,7 +207,7 @@ Page.prototype.setHeadersAndFooters = function () {
   footer.className = 'pageFooter';
   footer.contentEditable = false;
   footer.onmousedown = cancelDrag;
-  footer.style.width = 'calc(100% - ' + spacingsWithHeaders.page.sumWidth() + 'px)';
+  footer.style.width = $(that._content).width() + 'px';
   footer.style.height = (spacing.bottom - Math.ceil(cm1 / 2)) + 'px';
   footer.style.marginRight = spacingsWithHeaders.footer.mRight + 'px';
   footer.style.marginLeft = spacingsWithHeaders.footer.mLeft + 'px';
@@ -222,7 +222,7 @@ Page.prototype.setHeadersAndFooters = function () {
   // Headers and footers Enabled
   if (headerAndFooterEnabled) {
     // Header, with headers and footers enabled
-    header.classList += ' large';
+    $(header).addClass('large'); // IE 9 throws error if not using jQuery
     header.style.height = spacingsWithHeaders.header.height + 'px';
     header.style.paddingTop = spacingsWithHeaders.header.pTop + 'px';
     header.style.paddingBottom = spacingsWithHeaders.header.pBottom + 'px';
@@ -230,7 +230,7 @@ Page.prototype.setHeadersAndFooters = function () {
     header.style.borderBottom = '1px solid #ddd';
 
     // Footer, with headers and footers enabled
-    footer.classList += ' large';
+    $(footer).addClass('large'); // IE 9 throws error if not using jQuery
     footer.style.height = spacingsWithHeaders.footer.height + 'px';
     footer.style.paddingTop = spacingsWithHeaders.footer.pTop + 'px';
     footer.style.paddingBottom = spacingsWithHeaders.footer.pBottom + 'px';
@@ -266,6 +266,7 @@ Page.prototype.setHeadersAndFooters = function () {
    * @return {undefined}
    */
   function disableSelection(el) {
+    el.onselectstart=function(){return false;};
     $(el).css({
       '-webkit-touch-callout': 'none', /* iOS Safari */
       '-webkit-user-select': 'none', /* Safari */

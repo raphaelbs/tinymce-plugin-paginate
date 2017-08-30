@@ -68,6 +68,7 @@ function Paginator(pageFormatLabel, pageOrientation, ed) {
    * @private
    */
   this._body = this._document.getElementsByTagName('body');
+  this._body.contenteditable = false; // Moz Fix
   /**
    * Previous body's scroll offset. 
    * @property {Number}
@@ -762,7 +763,8 @@ var _createEmptyDivWrapper = function (pageRank) {
   // Page structure
   var page = $('<div>').attr({
     'data-paginator': true,
-    'data-paginator-page-rank': pageRank
+    'data-paginator-page-rank': pageRank,
+    'contenteditable': true
   }).css({
     'margin': this._defaultPage.MARGIN_Y + 'px auto',
     'min-height': this._defaultPage.getInnerHeight(), // only innerHeight; paddings will be applied in setHeadersAndFooters

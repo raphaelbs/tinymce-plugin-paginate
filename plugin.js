@@ -310,7 +310,7 @@ Page.prototype.setHeadersAndFooters = function () {
   header.className = 'pageHeader';
   header.contentEditable = false;
   header.onmousedown = cancelDrag;
-  header.style.width = 'calc(100% - ' + spacingsWithHeaders.page.sumWidth() + 'px)';
+  header.style.width = $(that._content).width() + 'px';
   header.style.height = (spacing.top - Math.ceil(cm1 / 2)) + 'px';
   header.style.marginRight = spacingsWithHeaders.header.mRight + 'px';
   header.style.marginLeft = spacingsWithHeaders.header.mLeft + 'px';
@@ -327,7 +327,7 @@ Page.prototype.setHeadersAndFooters = function () {
   footer.className = 'pageFooter';
   footer.contentEditable = false;
   footer.onmousedown = cancelDrag;
-  footer.style.width = 'calc(100% - ' + spacingsWithHeaders.page.sumWidth() + 'px)';
+  footer.style.width = $(that._content).width() + 'px';
   footer.style.height = (spacing.bottom - Math.ceil(cm1 / 2)) + 'px';
   footer.style.marginRight = spacingsWithHeaders.footer.mRight + 'px';
   footer.style.marginLeft = spacingsWithHeaders.footer.mLeft + 'px';
@@ -342,7 +342,7 @@ Page.prototype.setHeadersAndFooters = function () {
   // Headers and footers Enabled
   if (headerAndFooterEnabled) {
     // Header, with headers and footers enabled
-    header.classList += ' large';
+    $(header).addClass('large'); // IE 9 throws error if not using jQuery
     header.style.height = spacingsWithHeaders.header.height + 'px';
     header.style.paddingTop = spacingsWithHeaders.header.pTop + 'px';
     header.style.paddingBottom = spacingsWithHeaders.header.pBottom + 'px';
@@ -350,7 +350,7 @@ Page.prototype.setHeadersAndFooters = function () {
     header.style.borderBottom = '1px solid #ddd';
 
     // Footer, with headers and footers enabled
-    footer.classList += ' large';
+    $(footer).addClass('large'); // IE 9 throws error if not using jQuery
     footer.style.height = spacingsWithHeaders.footer.height + 'px';
     footer.style.paddingTop = spacingsWithHeaders.footer.pTop + 'px';
     footer.style.paddingBottom = spacingsWithHeaders.footer.pBottom + 'px';
@@ -386,6 +386,7 @@ Page.prototype.setHeadersAndFooters = function () {
    * @return {undefined}
    */
   function disableSelection(el) {
+    el.onselectstart=function(){return false;};
     $(el).css({
       '-webkit-touch-callout': 'none', /* iOS Safari */
       '-webkit-user-select': 'none', /* Safari */
@@ -711,6 +712,7 @@ function Paginator(pageFormatLabel, pageOrientation, ed) {
    * @private
    */
   this._body = this._document.getElementsByTagName('body');
+  this._body.contenteditable = false; // Moz Fix
   /**
    * Previous body's scroll offset. 
    * @property {Number}
@@ -1405,7 +1407,8 @@ var _createEmptyDivWrapper = function (pageRank) {
   // Page structure
   var page = $('<div>').attr({
     'data-paginator': true,
-    'data-paginator-page-rank': pageRank
+    'data-paginator-page-rank': pageRank,
+    'contenteditable': true
   }).css({
     'margin': this._defaultPage.MARGIN_Y + 'px auto',
     'min-height': this._defaultPage.getInnerHeight(), // only innerHeight; paddings will be applied in setHeadersAndFooters
@@ -1833,14 +1836,14 @@ function tinymcePluginPaginate(editor) {
         if (walking) {
           // and I'm going upwards and cursor is in position 0
           // move cursor to previous element
-          if (direction === 1 && _sel.baseOffset === 0) {
+          if (direction === 1 && _sel.anchorOffset === 0) {
             var normalizedOffset = _getInnerText(_normalizedNode.previousElementSibling).length - 1;
             normalizedOffset = Math.max(normalizedOffset, 0);
             _setCursor(_normalizedNode.previousElementSibling, normalizedOffset);
             _pd = true;
             // and I'm going downwards and cursor is in position length-1
             // move cursor to next element
-          } else if (direction === 2 && _getInnerText(_normalizedNode).length === _sel.baseOffset) {
+          } else if (direction === 2 && _getInnerText(_normalizedNode).length === _sel.anchorOffset) {
             _setCursor(_normalizedNode.nextElementSibling, 0);
             _pd = true;
           }
@@ -1867,7 +1870,7 @@ function tinymcePluginPaginate(editor) {
         } else if (direction === 2) {
           // and I'm in the last element of the page
           // nothing to do, only prevent default action
-          if (_pageContent[_pageContent.length - 1] === _normalizedNode && _getInnerText(_pageContent[_pageContent.length - 1]).length === _sel.baseOffset)
+          if (_pageContent[_pageContent.length - 1] === _normalizedNode && _getInnerText(_pageContent[_pageContent.length - 1]).length === _sel.anchorOffset)
             return _preventDelete(true);
         }
         return _preventDelete(false);
@@ -1896,7 +1899,7 @@ function tinymcePluginPaginate(editor) {
           // and the direction is donwards (↓),
           // I need the content of the sibling page
           if (direction === 2) {
-            if (_getInnerText(_normalizedNode).length === _sel.baseOffset) {
+            if (_getInnerText(_normalizedNode).length === _sel.anchorOffset) {
               // and there's only a child within page content
               // remove P from escaping page
               if (_pageContent[_pageContent.length - 1] === _normalizedNode) {
@@ -1918,13 +1921,13 @@ function tinymcePluginPaginate(editor) {
       if (walking) {
         _pageContent = _getPageContent(_page);
         // if I'm going left and I'm in the offset 0
-        if (direction === 1 && _sel.baseOffset === 0) {
+        if (direction === 1 && _sel.anchorOffset === 0) {
           // sets the cursor to the ending of the last node of siblingPage
           _setCursor(_siblingPageContent[_siblingPageContent.length - 1], _getInnerText(_siblingPageContent[_siblingPageContent.length - 1]).length);
           _pd = true;
         }
         // if I'm going right and I'm in the offset is equal to the element text length
-        if (direction === 2 && _sel.baseOffset >= _getInnerText(_pageContent[0]).length - 1) {
+        if (direction === 2 && _sel.anchorOffset >= _getInnerText(_pageContent[0]).length - 1) {
           // sets the cursor to the beginning of the first node of siblingPage
           _setCursor(_siblingPageContent[0], 0);
           _pd = true;

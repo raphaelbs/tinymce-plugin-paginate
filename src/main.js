@@ -297,14 +297,14 @@ function tinymcePluginPaginate(editor) {
         if (walking) {
           // and I'm going upwards and cursor is in position 0
           // move cursor to previous element
-          if (direction === 1 && _sel.baseOffset === 0) {
+          if (direction === 1 && _sel.anchorOffset === 0) {
             var normalizedOffset = _getInnerText(_normalizedNode.previousElementSibling).length - 1;
             normalizedOffset = Math.max(normalizedOffset, 0);
             _setCursor(_normalizedNode.previousElementSibling, normalizedOffset);
             _pd = true;
             // and I'm going downwards and cursor is in position length-1
             // move cursor to next element
-          } else if (direction === 2 && _getInnerText(_normalizedNode).length === _sel.baseOffset) {
+          } else if (direction === 2 && _getInnerText(_normalizedNode).length === _sel.anchorOffset) {
             _setCursor(_normalizedNode.nextElementSibling, 0);
             _pd = true;
           }
@@ -331,7 +331,7 @@ function tinymcePluginPaginate(editor) {
         } else if (direction === 2) {
           // and I'm in the last element of the page
           // nothing to do, only prevent default action
-          if (_pageContent[_pageContent.length - 1] === _normalizedNode && _getInnerText(_pageContent[_pageContent.length - 1]).length === _sel.baseOffset)
+          if (_pageContent[_pageContent.length - 1] === _normalizedNode && _getInnerText(_pageContent[_pageContent.length - 1]).length === _sel.anchorOffset)
             return _preventDelete(true);
         }
         return _preventDelete(false);
@@ -360,7 +360,7 @@ function tinymcePluginPaginate(editor) {
           // and the direction is donwards (↓),
           // I need the content of the sibling page
           if (direction === 2) {
-            if (_getInnerText(_normalizedNode).length === _sel.baseOffset) {
+            if (_getInnerText(_normalizedNode).length === _sel.anchorOffset) {
               // and there's only a child within page content
               // remove P from escaping page
               if (_pageContent[_pageContent.length - 1] === _normalizedNode) {
@@ -382,13 +382,13 @@ function tinymcePluginPaginate(editor) {
       if (walking) {
         _pageContent = _getPageContent(_page);
         // if I'm going left and I'm in the offset 0
-        if (direction === 1 && _sel.baseOffset === 0) {
+        if (direction === 1 && _sel.anchorOffset === 0) {
           // sets the cursor to the ending of the last node of siblingPage
           _setCursor(_siblingPageContent[_siblingPageContent.length - 1], _getInnerText(_siblingPageContent[_siblingPageContent.length - 1]).length);
           _pd = true;
         }
         // if I'm going right and I'm in the offset is equal to the element text length
-        if (direction === 2 && _sel.baseOffset >= _getInnerText(_pageContent[0]).length - 1) {
+        if (direction === 2 && _sel.anchorOffset >= _getInnerText(_pageContent[0]).length - 1) {
           // sets the cursor to the beginning of the first node of siblingPage
           _setCursor(_siblingPageContent[0], 0);
           _pd = true;
