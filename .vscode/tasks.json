@@ -1,0 +1,33 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Tinymce-Paginate: watch",
+            "type": "shell",
+            "command": "grunt",
+            "problemMatcher": "$eslint-stylish",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Tinymce-Paginate: build-copy",
+            "type": "shell",
+            "command": "grunt build-copy",
+            "problemMatcher": "$eslint-stylish",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        }
+    ]
+}

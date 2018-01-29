@@ -58,9 +58,9 @@ function Page(formatLabel, orientation, rank, wrappedPageDiv, ed) {
    */
   this.spacingsWithHeaders = {
     page: {
-      pTop: cm1 * 5, // will match the header outer height
+      pTop: cm1 * 2.9, // will match the header outer height
       pRight: cm1,
-      pBottom: cm1 * 3, // will match the footer outer height
+      pBottom: cm1 * 2.2, // will match the footer outer height
       pLeft: cm1,
       sumHeight: function () { return this.pTop + this.pBottom; },
       sumWidth: function () { return this.pRight + this.pLeft; }
@@ -68,21 +68,25 @@ function Page(formatLabel, orientation, rank, wrappedPageDiv, ed) {
   };
   // header
   this.spacingsWithHeaders.header = {
-    pTop: cm1,
+    pTop: Math.ceil(cm1 / 2.2),
+    pBottom: Math.ceil(cm1 / 2.2),
+    mBottom: Math.ceil(cm1 / 2),
     mRight: this.spacingsWithHeaders.page.pRight,
-    pBottom: cm1,
     mLeft: this.spacingsWithHeaders.page.pLeft,
-    mBottom: cm1 / 2,
     sumHeight: function () { return this.pTop + this.pBottom + this.mBottom + 1; } // 1px = border
   };
   this.spacingsWithHeaders.header.height = this.spacingsWithHeaders.page.pTop - this.spacingsWithHeaders.header.sumHeight();
+  // addinfo
+  this.spacingsWithHeaders.addInfo = {
+    height: this.spacingsWithHeaders.header.height + cm1 * 1.7
+  };
   // footer
   this.spacingsWithHeaders.footer = {
-    pTop: cm1 / 2,
+    pTop: Math.ceil(cm1 / 3),
     mRight: this.spacingsWithHeaders.page.pRight,
-    pBottom: cm1 / 2,
+    pBottom: Math.ceil(cm1 / 2),
     mLeft: this.spacingsWithHeaders.page.pLeft,
-    mTop: cm1 / 2,
+    mTop: Math.ceil(cm1 / 2),
     sumHeight: function () { return this.pTop + this.pBottom + this.mTop + 1; } // 1px = border
   };
   this.spacingsWithHeaders.footer.height = this.spacingsWithHeaders.page.pBottom - this.spacingsWithHeaders.footer.sumHeight();
@@ -143,7 +147,7 @@ Page.prototype.content = function (wrappedPageDiv) {
  */
 Page.prototype.innerContent = function () {
   if (this._content) {
-    return $(this._content).children(':not(.pageFooter):not(.pageHeader)');
+    return $(this._content).children(':not(.pageFooter):not(.pageHeader):not(.pageAddData)');
   }
 };
 
@@ -163,7 +167,7 @@ Page.prototype.setHeadersAndFooters = function () {
   var cm1 = Math.ceil(Number(this._display.mm2px(10)) - 1); // -1 is the dirty fix mentionned in the todo tag
 
   // remove header and footer
-  var removed = $(that._content).find('.pageHeader,.pageFooter').remove();
+  var removed = $(that._content).find('.pageHeader,.pageFooter,.pageAddData').remove();
   // default function to cancel drag on header and footer
   function cancelDrag(e) { e.preventDefault(); return false; }
 
@@ -180,10 +184,11 @@ Page.prototype.setHeadersAndFooters = function () {
     right: spacingsWithoutHeaders.page.pRight,
     bottom: spacingsWithoutHeaders.page.pBottom,
     left: spacingsWithoutHeaders.page.pLeft,
-    minHeight: that.getInnerHeight()
+    minHeight: Math.floor(that.getInnerHeight())
   };
 
   var headerAndFooterEnabled = configs.possuiCabecalhoRodape || (removed.length > 0 && configs.headerHtml && configs.possuiCabecalhoRodape !== false);
+  var headerAdditionalData = configs.possuiDadosPaciente;
 
   // Header, with margins enabled
   var header = document.createElement('div');
@@ -191,7 +196,7 @@ Page.prototype.setHeadersAndFooters = function () {
   header.contentEditable = false;
   header.onmousedown = cancelDrag;
   header.style.width = $(that._content).width() + 'px';
-  header.style.height = (spacing.top - cm1 / 2) + 'px';
+  header.style.height = Math.ceil(spacing.top - cm1 / 2) + 'px';
   header.style.marginRight = spacingsWithHeaders.header.mRight + 'px';
   header.style.marginLeft = spacingsWithHeaders.header.mLeft + 'px';
   /* header style */
@@ -202,13 +207,30 @@ Page.prototype.setHeadersAndFooters = function () {
   header.style.color = '#8d8e90';
   disableSelection(header);
 
+  // AddData
+  var addData = document.createElement('div');
+  addData.className = 'pageAddData';
+  addData.contentEditable = false;
+  addData.onmousedown = cancelDrag;
+  addData.style.width = $(that._content).width() + 'px';
+  addData.style.height = spacingsWithHeaders.addInfo.height + 'px';
+  addData.style.marginRight = spacingsWithHeaders.header.mRight + 'px';
+  addData.style.marginLeft = spacingsWithHeaders.header.mLeft + 'px';
+  /* AddData style */
+  addData.style.position = 'absolute';
+  addData.style.top = (spacing.top - cm1 / 2) + 'px';
+  addData.style.left = 0;
+  addData.style.borderBottom = '1px solid #ddd';
+  addData.style.color = '#8d8e90';
+  disableSelection(addData);
+
   // Footer, with margins enabled
   var footer = document.createElement('div');
   footer.className = 'pageFooter';
   footer.contentEditable = false;
   footer.onmousedown = cancelDrag;
   footer.style.width = $(that._content).width() + 'px';
-  footer.style.height = (spacing.bottom - cm1 / 2) + 'px';
+  footer.style.height = Math.ceil(spacing.bottom - cm1 / 2) + 'px';
   footer.style.marginRight = spacingsWithHeaders.footer.mRight + 'px';
   footer.style.marginLeft = spacingsWithHeaders.footer.mLeft + 'px';
   /* footer style */
@@ -223,18 +245,21 @@ Page.prototype.setHeadersAndFooters = function () {
   if (headerAndFooterEnabled) {
     // Header, with headers and footers enabled
     $(header).addClass('large'); // IE 9 throws error if not using jQuery
+
+    // Set new header style
     header.style.height = spacingsWithHeaders.header.height + 'px';
     header.style.paddingTop = spacingsWithHeaders.header.pTop + 'px';
     header.style.paddingBottom = spacingsWithHeaders.header.pBottom + 'px';
-    /* header style */
     header.style.borderBottom = '1px solid #ddd';
+
+    // Set new addData style
+    addData.style.top = (spacingsWithHeaders.header.height + spacingsWithHeaders.header.pTop + spacingsWithHeaders.header.pBottom) + 'px';
 
     // Footer, with headers and footers enabled
     $(footer).addClass('large'); // IE 9 throws error if not using jQuery
     footer.style.height = spacingsWithHeaders.footer.height + 'px';
     footer.style.paddingTop = spacingsWithHeaders.footer.pTop + 'px';
     footer.style.paddingBottom = spacingsWithHeaders.footer.pBottom + 'px';
-    /* footer style */
     footer.style.borderTop = '1px solid #ddd';
 
     // spacing, with headers and footers enabled
@@ -242,11 +267,16 @@ Page.prototype.setHeadersAndFooters = function () {
     spacing.right = spacingsWithHeaders.page.pRight;
     spacing.bottom = spacingsWithHeaders.page.pBottom;
     spacing.left = spacingsWithHeaders.page.pLeft;
-    spacing.height = that.getInnerHeight();
   }
 
+  // Addional data Enabled
+  if (headerAdditionalData) {
+    spacing.top += spacingsWithHeaders.addInfo.height;
+  }
+  
   insertHeaderData(header, headerAndFooterEnabled);
   insertFooterData(footer, headerAndFooterEnabled);
+  insertAddData(addData, headerAdditionalData);
 
   $(that._content)
     .css({
@@ -254,10 +284,14 @@ Page.prototype.setHeadersAndFooters = function () {
       'padding-right': spacing.right + 'px ',
       'padding-bottom': spacing.bottom + 'px ',
       'padding-left': spacing.left + 'px',
-      'min-height': spacing.minHeight
+      'height': spacing.minHeight + 'px',
+      'min-height': spacing.minHeight + 'px',
+      'max-height': spacing.minHeight + 'px'
     })
     .prepend(header)
     .append(footer);
+
+  if(headerAdditionalData) $(header).before(addData);
 
   /**
    * Disable mouse selection for header and footer.
@@ -273,8 +307,7 @@ Page.prototype.setHeadersAndFooters = function () {
       '-khtml-user-select': 'none', /* Konqueror HTML */
       '-moz-user-select': 'none', /* Firefox */
       '-ms-user-select': 'none', /* Internet Explorer/Edge */
-      'user-select': 'none', /* Non-prefixed version, currently
-                                                        supported by Chrome and Opera */
+      'user-select': 'none', /* Non-prefixed version, currently supported by Chrome and Opera */
     });
   }
 
@@ -304,6 +337,19 @@ Page.prototype.setHeadersAndFooters = function () {
       _configs.footerHtml(footer, headerAndFooterEnabled, that.rank);
     }
   }
+  /**
+   * Insert HTML content into header DOM element.
+   * @ignore
+   * @param {HTMLElement} addData virtual header DOM element
+   * @return {undefined}
+   */
+  function insertAddData(addData, headerAdditionalData) {
+    var _configs = that._editor.settings.paginate_configs();
+    if (_configs && _configs.addInfoHtml) {
+      if (typeof _configs.addInfoHtml !== 'function') throw Error('[tinymce~paginate] configuration "paginate_configs.addInfoHtml" should be [function] but is [' + typeof _configs.addInfoHtml + ']');
+      _configs.addInfoHtml(addData, headerAdditionalData, that.rank);
+    }
+  }
 };
 
 /**
@@ -327,7 +373,7 @@ Page.prototype.contentIsEmpty = function () {
  */
 Page.prototype.clean = function () {
   if (this._content) {
-    var headersAndFooters = $(this._content).find('.pageFooter,.pageHeader').detach();
+    var headersAndFooters = $(this._content).find('.pageFooter,.pageHeader,.pageAddData').detach();
     $(this._content).html(headersAndFooters);
   }
 };
@@ -441,7 +487,7 @@ Page.prototype.format = function (label) {
  */
 Page.prototype.getDefaultHeight = function () {
   var defaultHeightInPx = Number(this._display.mm2px(this.height));
-  return Math.ceil(defaultHeightInPx - 1); // -1 is the dirty fix mentionned in the todo tag
+  return Math.ceil(defaultHeightInPx - 5); // -1 is the dirty fix mentionned in the todo tag
 };
 
 /**
@@ -463,6 +509,7 @@ Page.prototype.getInnerHeight = function () {
   var configs = this._editor.settings.paginate_configs(),
     paddings = (configs && configs.possuiCabecalhoRodape) ?
       this.spacingsWithHeaders.page.sumHeight() : this.spacingsWithoutHeaders.page.sumHeight();
+  if (configs.possuiDadosPaciente) paddings += this.spacingsWithHeaders.addInfo.height;
   return this.getDefaultHeight() - paddings;
 };
 

@@ -143,7 +143,7 @@ function tinymcePluginPaginate(editor) {
     }
 
     function _getInnerText(el) {
-      return el.innerText.replace(/\r?\n|\r/igm, '');
+      return el.textContent.replace(/\r?\n|\r/igm, '');
     }
 
     function _isPageEmpty(page) {
@@ -151,11 +151,16 @@ function tinymcePluginPaginate(editor) {
     }
 
     function _getPageContent(page) {
-      return $(page).children(':not(.pageFooter):not(.pageHeader)');
+      return $(page).children(':not(.pageFooter):not(.pageHeader):not(.pageAddData)');
     }
 
     function _setCursor(elem, offset) {
-      editor.selection.setCursorLocation(elem.childNodes[0], offset);
+      if (elem.childNodes && elem.childNodes.length > 0) {
+        if (elem.childNodes[0].nodeType === 3) 
+          return editor.selection.setCursorLocation(elem.childNodes[0], offset);
+        return _setCursor(elem.childNodes[0], offset);
+      }
+      return editor.selection.setCursorLocation(elem, offset);
     }
 
     var _node = editor.selection.getNode(),
@@ -166,23 +171,35 @@ function tinymcePluginPaginate(editor) {
     /**
      * Mannually sanitizes editor. Deals with ranged selections.
      * @param {boolean} pd prevent default action
+     * @param {boolean} removing true for deleting (backspace/delete), false for arrowkeys
+     * @param {boolean} walking true if cursor is walikng right (→) or left (←)
+     * @param {number} direction 1 for upwards (↑), 2 for downwards (↓)
      * @method
      * @ignore
      * @return {undefined}
      */
-    function _sanitizeWithRange(pd) {
+    function _sanitizeWithRange(pd, removing, walking, direction) {
+
+      // If not removing, there's no need to sanitize the range
+      if (!removing) {
+        return _sanitizeWithoutRange(direction, removing, walking);
+      }
+      
       // Remove only allowed Nodes in this range selection
       if (_sel.type !== 'Range' && !editor.plugins.paginate.isEmpty() && _node.nodeName !== 'BODY') return;
       if (!_range) return;
-
+      
       // if selection is text, only returns
       if (_range.commonAncestorContainer.nodeType === 3) return;
-
+      
       // prevent default action
       if (pd) {
         evt.preventDefault();
         evt.stopPropagation();
       }
+
+      if (_range.startContainer === _range.endContainer && _range.startOffset === _range.endOffset) return;
+      
       /* Proceed with delete and remove node if range is empty */
       // Select all nodes inside this selection
       var _nodeIterator = document.createTreeWalker(
@@ -190,41 +207,41 @@ function tinymcePluginPaginate(editor) {
         NodeFilter.SHOW_ALL,
         {
           acceptNode: function (node) {
-            if (node.className && node.className.contains('page'))
-              return NodeFilter.FILTER_REJECT;
-            if (node.className && node.className.contains('preventdelete'))
-              return NodeFilter.FILTER_SKIP;
-            if ($(node).closest('.preventdelete').length && node.nodeType === 1 && node.tagName !== 'BR')
-              return NodeFilter.FILTER_ACCEPT;
-            return NodeFilter.FILTER_SKIP;
+            // ignore if is header or footer
+            if (node.className && node.className.contains('page')) return NodeFilter.FILTER_REJECT;
+            // jump into page content
+            if (node.className && node.className.contains('preventdelete')) return NodeFilter.FILTER_SKIP;
+            return NodeFilter.FILTER_ACCEPT;
           }
         }
       );
       // initialize variables for node removals
-      var _marked = false, _nodeList = [],
-        normalizedStart = _range.startContainer.nodeType === 3 ? _range.startContainer.parentNode : _range.startContainer,
-        _normalizedEnd = _range.endContainer.nodeType === 3 ? _range.endContainer.parentNode : _range.endContainer;
+      var _nodeList = [];
       while (_nodeIterator.nextNode()) {
-        if (!_marked) {
-          if (_nodeIterator.currentNode !== normalizedStart) continue;
-          _marked = true;
-        }
-        if (_nodeList.length > 1) _nodeList.pop().remove();
+        if (_nodeList.length === 0 && _nodeIterator.currentNode !== _range.startContainer) continue;
         _nodeList.push(_nodeIterator.currentNode);
-        if (_nodeIterator.currentNode === _normalizedEnd) break;
+        if (_nodeIterator.currentNode === _range.endContainer) break;
       }
+
       // remove first and last nodeIt using offset
       var _firstNode = _nodeList.shift();
-      _firstNode.innerText = _getInnerText(_firstNode).substr(0, _range.startOffset);
+      _firstNode.textContent = _getInnerText(_firstNode).substr(0, _range.startOffset);
       var _firstOffset = _getInnerText(_firstNode).length;
       var _lastNode = _nodeList.pop();
-      if (_range.endOffset < _getInnerText(_normalizedEnd).length) {
-        _lastNode.innerText = (_getInnerText(_lastNode).length > 0 && _getInnerText(_lastNode).substr(_range.endOffset)) || '';
+      if (_range.endOffset < _getInnerText(_range.endContainer).length) {
+        _lastNode.textContent = (_getInnerText(_lastNode).length > 0 && _getInnerText(_lastNode).substr(_range.endOffset)) || '';
         // merge first and last
-        _firstNode.innerText += _getInnerText(_lastNode);
+        _firstNode.textContent += _getInnerText(_lastNode);
       }
       _lastNode.remove();
+
+      // clean list
+      _nodeList.forEach(function(node){
+        try { node.remove(); } catch (e) {}
+      });
+
       // append BR in case nothing left
+      if (_firstNode.nodeType === 3) _firstNode = _firstNode.parentNode;
       if (_firstNode.children.length === 0) _firstNode.appendChild(document.createElement('br'));
 
       // sets the cursor to the middle of mixed texts
@@ -248,32 +265,10 @@ function tinymcePluginPaginate(editor) {
     function _sanitizeWithoutRange(direction, removing, walking) {
       if (direction < 0) return;
 
-      var _siblingPage, _pageContent, _isBoundary,
-        _normalizedNode = _sel.anchorNode.nodeType === 3 ? _sel.anchorNode.parentNode : _sel.anchorNode, _pd = false;
-
       // check if cursor is in a boundary element of the page
       function _isInBoundary(nodeSibling) {
         if (nodeSibling) return nodeSibling.className.contains('page') ? true : false;
         return true;
-      }
-
-      // Move cursor
-      function _moveCursor() {
-        // If I'm walking perpendicular
-        // and going upwards (↑)
-        if (direction === 1) {
-          // sets the cursor to the ending of the last node of siblingPage
-          var normalizedOffset = _getInnerText(_siblingPageContent[_siblingPageContent.length - 1]).length - 1;
-          normalizedOffset = Math.max(_normalizedNode, 0);
-          _setCursor(_siblingPageContent[_siblingPageContent.length - 1], normalizedOffset);
-          return _preventDelete(true);
-        }
-        // and going downwards (↓)
-        if (direction === 2) {
-          // sets the cursor to the beginning of the first node of siblingPage
-          _setCursor(_siblingPageContent[0], 0);
-          return _preventDelete(true);
-        }
       }
 
       // stop default actions
@@ -282,6 +277,12 @@ function tinymcePluginPaginate(editor) {
         evt.preventDefault();
         evt.stopPropagation();
       }
+
+      var _siblingPage, _pageContent, _isBoundary,
+        _pd = false, _normalizedNode = (function _NN(_node){ 
+          if (_node.parentNode.className && _node.parentNode.className.contains('preventdelete')) return _node;
+          return _NN(_node.parentNode);
+        })(_sel.anchorNode);
 
       // 0) check if we are in the page boundary
       // if the direction is upwards (↑)
@@ -298,7 +299,7 @@ function tinymcePluginPaginate(editor) {
           // and I'm going upwards and cursor is in position 0
           // move cursor to previous element
           if (direction === 1 && _sel.anchorOffset === 0) {
-            var normalizedOffset = _getInnerText(_normalizedNode.previousElementSibling).length - 1;
+            var normalizedOffset = _getInnerText(_normalizedNode.previousElementSibling).length;
             normalizedOffset = Math.max(normalizedOffset, 0);
             _setCursor(_normalizedNode.previousElementSibling, normalizedOffset);
             _pd = true;
@@ -310,7 +311,7 @@ function tinymcePluginPaginate(editor) {
           }
         }
         // nothing to do at all
-        paginator.updateScrollPosition();
+        paginator.updateScrollPosition(true);
         return _preventDelete(_pd);
       }
 
@@ -326,13 +327,23 @@ function tinymcePluginPaginate(editor) {
         if (direction === 1) {
           // and I'm in the first element of the page
           // nothing to do, only prevent default action
-          if (_pageContent[0] === _normalizedNode && _sel.focusOffset === 0)
+          if (_pageContent[0] === _normalizedNode) {
+            if (_sel.focusOffset !== 0) {
+              _setCursor(_normalizedNode, 0);
+            }
             return _preventDelete(true);
+          }
         } else if (direction === 2) {
           // and I'm in the last element of the page
-          // nothing to do, only prevent default action
-          if (_pageContent[_pageContent.length - 1] === _normalizedNode && _getInnerText(_pageContent[_pageContent.length - 1]).length === _sel.anchorOffset)
-            return _preventDelete(true);
+          if (_pageContent[_pageContent.length - 1] === _normalizedNode) {
+            // and I'm not in the last lines offset
+            if (_getInnerText(_pageContent[_pageContent.length - 1]).length === _sel.anchorOffset) {
+              var _normalizedOffset = _getInnerText(_normalizedNode).length;
+              _normalizedOffset = Math.max(_normalizedOffset, 0);
+              _setCursor(_normalizedNode, _normalizedOffset);
+              return _preventDelete(true);
+            }
+          }
         }
         return _preventDelete(false);
       }
@@ -349,10 +360,10 @@ function tinymcePluginPaginate(editor) {
             // and there's only a child within page content
             // remove P from escaping page
             if (_pageContent[0] === _normalizedNode) {
-              _siblingPageContent[_siblingPageContent.length - 1].innerText += _getInnerText(_pageContent[0]);
+              _siblingPageContent[_siblingPageContent.length - 1].textContent += _getInnerText(_pageContent[0]);
               _pageContent[0].remove();
-              paginator.watchPage();
               _setCursor(_siblingPageContent[_siblingPageContent.length - 1], _getInnerText(_siblingPageContent[_siblingPageContent.length - 1]).length);
+              paginator.watchPage();
               return _preventDelete(true);
             }
           }
@@ -364,10 +375,10 @@ function tinymcePluginPaginate(editor) {
               // and there's only a child within page content
               // remove P from escaping page
               if (_pageContent[_pageContent.length - 1] === _normalizedNode) {
-                _pageContent[_pageContent.length - 1].innerText += _getInnerText(_siblingPageContent[0]);
+                _pageContent[_pageContent.length - 1].textContent += _getInnerText(_siblingPageContent[0]);
                 _siblingPageContent[0].remove();
-                paginator.watchPage();
                 _setCursor(_pageContent[_pageContent.length - 1], _getInnerText(_pageContent[_pageContent.length - 1]).length);
+                paginator.watchPage();
                 return _preventDelete(true);
               }
             }
@@ -388,18 +399,31 @@ function tinymcePluginPaginate(editor) {
           _pd = true;
         }
         // if I'm going right and I'm in the offset is equal to the element text length
-        if (direction === 2 && _sel.anchorOffset >= _getInnerText(_pageContent[0]).length - 1) {
+        if (direction === 2 && _getInnerText(_normalizedNode).length === _sel.anchorOffset) {
           // sets the cursor to the beginning of the first node of siblingPage
           _setCursor(_siblingPageContent[0], 0);
           _pd = true;
         }
         // just walk
-        paginator.updateScrollPosition();
+        paginator.updateScrollPosition(true);
         return _preventDelete(_pd);
       }
       // If I'm walking perpendicular
-      // and going upwards (↑)
-      _moveCursor();
+      // and going upwards (↑) or downwards (↓)
+      if (direction === 1) {
+        // sets the cursor to the ending of the last node of siblingPage
+        var __normalizedOffset = _getInnerText(_siblingPageContent[_siblingPageContent.length - 1]).length;
+        __normalizedOffset = Math.max(__normalizedOffset, 0);
+        _setCursor(_siblingPageContent[_siblingPageContent.length - 1], __normalizedOffset);
+      }
+      // and going downwards (↓)
+      if (direction === 2) {
+        // sets the cursor to the beginning of the first node of siblingPage
+        _setCursor(_siblingPageContent[0], 0);
+      }
+      // just walk
+      paginator.updateScrollPosition(true);
+      return _preventDelete(true);
     }
 
     /* If delete keys pressed */
@@ -421,8 +445,11 @@ function tinymcePluginPaginate(editor) {
         if (!direction) direction = 2; // (↓)
         // if range exists and there isn't Ctrl pressed 
         // prevent delete and backspace actions
-        if (!evt.ctrlKey) {
-          if (_range) _sanitizeWithRange(true);
+        if (!evt.ctrlKey || !evt.shiftKey) {
+          if (_range) _sanitizeWithRange(true,
+            evt.keyCode === 8 || evt.keyCode === 46, // is removing
+            evt.keyCode === 37 || evt.keyCode === 39, // walking sideways with cursor
+            direction); 
           else _sanitizeWithoutRange(direction,
             evt.keyCode === 8 || evt.keyCode === 46, // is removing
             evt.keyCode === 37 || evt.keyCode === 39); // walking sideways with cursor
@@ -430,6 +457,8 @@ function tinymcePluginPaginate(editor) {
         }
         /* falls through */
       case 86: // V
+        //if (evt.ctrlKey) _sanitizeWithRange(false);
+        break;
       case 88: // X
         if (evt.ctrlKey) _sanitizeWithRange(true);
         break;
@@ -437,13 +466,13 @@ function tinymcePluginPaginate(editor) {
         if (editor.plugins.fullscreen.isFullscreen())
           editor.execCommand('mceFullScreen');
         break;
-      case 13:
+      case 13: // enter
         setTimeout(function () {
           paginator.watchPage();
         }, 0);
         /* falls through */
       default:
-        if (!evt.ctrlKey) {
+        if (!evt.ctrlKey || !evt.shiftKey) {
           var valid =
             (evt.keyCode > 47 && evt.keyCode < 58) || // number keys
             evt.keyCode == 32 || evt.keyCode == 13 || // spacebar & return key(s) (if you want to allow carriage returns)
@@ -554,10 +583,25 @@ function tinymcePluginPaginate(editor) {
     return paginator.contentIsEmpty();
   };
 
+  /**
+   * Returns the current content.
+   * @method
+   * @returns {boolean} is empty
+   */
+  this.getCurrentContent = function () { // jshint ignore:line
+    return paginator.currentContent();
+  };
+
   editor.once('init', function () {
     paginator = new Paginator('A4', 'portrait', editor);
     editor.dom.bind(editor.getDoc(), 'PageChange', onPageChange);
     editor.shortcuts.remove('meta+a'); /* Enable native CTRL + A shortcut */
+
+    if (navigator && navigator.userAgent && navigator.userAgent.match(/iPhone/)) {
+      // editorContainer, contentAreaContainer, iframeElement
+      editor.contentAreaContainer.style.webkitOverflowScrolling = 'touch';
+      editor.contentAreaContainer.style.overflow='scroll';
+    }
     paginator.init();
     paginatorListens = true;
     watchPageEnabled = true;
@@ -568,7 +612,7 @@ function tinymcePluginPaginate(editor) {
 
   editor.on('remove', function(evt) {
     ui.removeNavigationButtons();
-    if (paginator) paginator.destroy();
+    // if (paginator) paginator.destroy();
     clearTimeout(_timeout);
     watchPageIterationsCount = 0;
     paginatorListens = false;
@@ -582,7 +626,7 @@ function tinymcePluginPaginate(editor) {
   var _change_debouce = 100, _timeout;
   editor.on('change', function (evt) {
     evt.preventDefault();
-    if (!paginatorListens || !watchPageEnabled) return;
+    if (!paginatorListens || !watchPageEnabled || paginator.isWatchingPage()) return;
 
     clearTimeout(_timeout);
     _timeout = setTimeout(function(){
@@ -598,7 +642,7 @@ function tinymcePluginPaginate(editor) {
    * Watches for page content changes.
    */
   editor.on('SetContent', function (args) {
-    if (!paginator) return;
+    if (!paginator || paginator.isWatchingPage()) return;
     paginator.updatePages();
   });
 
@@ -608,6 +652,10 @@ function tinymcePluginPaginate(editor) {
 
   editor.on('ToggleMargins', function (evt) {
     paginator.toggleHeadersAndFooters();
+  });
+
+  editor.on('ToggleHeaderAdditionalData', function (evt) {
+    paginator.toggleHeaderAdditionalData();
   });
 }
 
