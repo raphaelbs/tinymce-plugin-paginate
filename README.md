@@ -14,7 +14,7 @@ This plugin should be used with a custom version of Tinymce:
 
 ## Demo
 
-<img src="/readme-resources/editor_demo.gif" height="400" width="auto">
+<img src="/readme-resources/editor_demo.gif" width="auto">
 
 ## Considerations
 
@@ -23,5 +23,6 @@ Still working in progress. Jsdoc and in-line documentation are outdated.
 ## Contributors
 
 - [Alex Alves](https://github.com/alex250195)
+- [Daniel Alves](https://github.com/guilar17)
 - [Lauro Mansur](https://github.com/lauromansur)
 - [Mario Vilela](https://github.com/mariolfvilela)
