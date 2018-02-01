@@ -14,7 +14,7 @@ This plugin should be used with a custom version of Tinymce:
 
 ## Demo
 
-<img src="/readme-resources/editor_page.png" height="200" width="auto">
+<img src="/readme-resources/editor_demo.gif" height="400" width="auto">
 
 ## Considerations
 
