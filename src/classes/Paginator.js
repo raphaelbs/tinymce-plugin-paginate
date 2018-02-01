@@ -709,6 +709,18 @@ Paginator.prototype.watchPage = function () {
 };
 
 /**
+ * Calculates offset(any) relative to given {stopClass}.
+ * @param {HTMLElement} node element to walk on tree
+ * @param {String} stopClass class in wich the element stop the recursion
+ * @param {Number} height accumulated height
+ * @param {String} relativeTo represent the orientation in witch this node is relative eg. offsetTop | offsetLeft
+ * @return {Number} offset(any) relative to {stopClass}
+ */
+Paginator.prototype.relativeOffset = function (node, stopClass, height, relativeTo) {
+  return _relativeOffset(node, stopClass, height, relativeTo);
+};
+
+/**
  * Create an empty HTML div element to wrap the futur content to fill a new page.
  * @method
  * @private
@@ -806,7 +818,7 @@ var _relativeOffset = function (node, stopClass, height, relativeTo) {
   if (!relativeTo) relativeTo = 'offsetTop';
   if (!height) height = 0;
   height += node[relativeTo];
-  if (node.offsetParent && node.offsetParent === node.parentNode &&  node.offsetParent.className && node.offsetParent.className.contains(stopClass)) 
+  if (node.offsetParent && height > 0 && node.offsetParent.className && node.offsetParent.className.contains(stopClass)) 
     return height + node.offsetParent[relativeTo];
   return _relativeOffset(node.parentNode, stopClass, height);
 };

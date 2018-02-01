@@ -43,7 +43,7 @@ module.exports = function (grunt) {
         },
         js: {
           files: ['src/**/*.js'],
-          tasks: ['jshint:js','browserify','copy:to_project','watch'],
+          tasks: ['dev'],
         }
       },
       bump: {

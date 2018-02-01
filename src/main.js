@@ -128,307 +128,401 @@ function tinymcePluginPaginate(editor) {
     editor.nodeChanged();
   }
 
+  /* Checks the container height */
+  function containerIsEmpty(innerHTML) {
+    return (innerHTML.replace(/\r?\n|\r/igm, '').length === 0);
+  }
+
+  function getInnerText(el) {
+    return el.textContent.replace(/\r?\n|\r/igm, '');
+  }
+
+  function getTextLength(el) {
+    return getInnerText(el).length;
+  }
+
+  function isPageEmpty(page) {
+    return getPageContent(page).length === 0;
+  }
+
+  function getPageContent(page) {
+    return $(page).children(':not(.pageFooter):not(.pageHeader):not(.pageAddData)');
+  }
+
+  /* Sets the cursor at the beginning or the end of element */
+  function setCursor(elem, atTheEnd) {
+    var whichNode = 0;
+    if (atTheEnd === true) {
+      whichNode = elem.childNodes.length - 1;
+    }
+    if (elem.childNodes && elem.childNodes.length > 0) {
+      if (elem.childNodes[whichNode].nodeType !== 3) 
+        return setCursor(elem.childNodes[whichNode], atTheEnd);
+      elem = elem.childNodes[whichNode];
+    }
+    if (atTheEnd) {
+      if (elem.nodeType === 3){
+        atTheEnd = elem.length;
+      } else {
+        atTheEnd = elem.innerText.length;
+      }
+    } else {
+      atTheEnd = 0;
+    }
+    return editor.selection.setCursorLocation(elem, atTheEnd);
+  }
+
+  /* Insert a span into cursor position */
+  function insertElementIntoPosition(element, selection, normalizedNode, offset) {
+    if (selection.anchorNode.splitText) {
+      selection.anchorNode.parentElement.insertBefore(element, selection.anchorNode.splitText(offset));
+      return;
+    } else {
+      if (selection.anchorNode === normalizedNode){
+        normalizedNode.prepend(element);
+        return;
+      } else {
+        return insertElementIntoPosition(selection.anchorNode.parentElement, selection, normalizedNode, offset);
+      }
+    }
+  }
+
+  /* Check whether the cursor is in the page's most outside line */
+  function isBoundaryLine(direction, selection, normalizedNode) {
+    normalizedNode.normalize();
+    paginatorListens = false;
+
+    // Creates a empty span
+    var _isBoundaryLine = false, goingUp = direction === 1, _spanCursor = document.createElement("span");
+    _spanCursor.innerHTML = '&nbsp;';
+
+    // Replaces the <p> element by a <span> with the same html content
+    var _virtualNode = document.createElement('span');
+    _virtualNode.innerHTML = normalizedNode.innerHTML;
+
+    // Insert a span into cursor position
+    if (selection.anchorNode.splitText) {
+      selection.anchorNode.parentElement.insertBefore(_spanCursor, selection.anchorNode.splitText(selection.anchorOffset));
+    } else {
+      normalizedNode.prepend(_spanCursor);
+    }
+
+    // Save cursor top
+    var _cursorBottom = _spanCursor.getClientRects()[0][goingUp ? 'top' : 'bottom'] - (goingUp ? 14 : 0);
+    // Hides normalizedNode
+    normalizedNode.insertAdjacentElement('afterend', _virtualNode);
+    normalizedNode.style.display = 'none';
+    // Save boundary top
+    var _boundaryBottom = _virtualNode.getClientRects()[goingUp ? 0 : _virtualNode.getClientRects().length-1][goingUp ? 'top' : 'bottom'];
+    
+    // Check whether the span element is in the same Y position than the first/last
+    if (goingUp && _boundaryBottom >= _cursorBottom) _isBoundaryLine = true;
+    if (!goingUp && _boundaryBottom <= _cursorBottom) _isBoundaryLine = true;
+    
+    // Reset element states
+    normalizedNode.style.display = '';
+    _virtualNode.remove();
+    _spanCursor.remove();
+    
+    paginatorListens = true;
+    normalizedNode.normalize();
+    // If both offsets are equal, then the user is in the boundary line
+    return _isBoundaryLine;
+  }
+
+  /* Check if cursor is in a boundary element of the page */
+  function isPageBoundary(nodeSibling) {
+    if (nodeSibling) return nodeSibling.className.contains('page') ? true : false;
+    return true;
+  }
+
+  function isBlockBoundary(normalizedNode, selection, isFirstCharacter) {
+    // If we are looking to match the first character of the normalizedNode
+    if (selection.anchorOffset !== (isFirstCharacter ? 0 : getTextLength(selection.anchorNode))) return false;
+    if (selection.anchorNode === normalizedNode) return true;
+    if (!normalizedNode.childNodes || normalizedNode.childNodes.length === 0) return false;
+    return isBlockBoundary(normalizedNode.childNodes[isFirstCharacter ? 0 : normalizedNode.childNodes.length - 1], selection, isFirstCharacter);
+  }
+
+  // stop default actions
+  function _preventDelete(pd) {
+    if (!pd || !evt) return;
+    evt.preventDefault();
+    evt.stopPropagation();
+  }
+
+  var node, page, sel, range, evt;
+
+  /**
+   * Mannually sanitizes editor. Deals with ranged selections.
+   * @param {boolean} pd prevent default action
+   * @param {boolean} removing true for deleting (backspace/delete), false for arrowkeys
+   * @param {boolean} walking true if cursor is walikng right (→) or left (←)
+   * @param {number} direction 1 for upwards (↑), 2 for downwards (↓)
+   * @method
+   * @ignore
+   * @return {undefined}
+   */
+  function sanitizeWithRange(pd, removing, walking, direction) {
+
+    // If not removing, there's no need to sanitize the range
+    if (!removing) {
+      var normalize_anchor = Math[direction === 1 ? 'min' : 'max'](sel.anchorOffset, sel.focusOffset),
+      n_sel = {
+        anchorNode: sel.anchorNode,
+        focusOffset: normalize_anchor,
+        anchorOffset: normalize_anchor,
+        type: 'Caret'
+      };
+      return sanitizeWithoutRange(direction, removing, walking, n_sel);
+    }
+    
+    // Remove only allowed Nodes in this range selection
+    if (sel.type !== 'Range' && !editor.plugins.paginate.isEmpty() && node.nodeName !== 'BODY') return;
+    if (!range) return;
+    
+    // if selection is text, only returns
+    if (range.commonAncestorContainer.nodeType === 3) return;
+    
+    // prevent default action
+    if (pd) {
+      evt.preventDefault();
+      evt.stopPropagation();
+    }
+
+    if (range.startContainer === range.endContainer && range.startOffset === range.endOffset) return;
+    
+    /* Proceed with delete and remove node if range is empty */
+    // Select all nodes inside this selection
+    var _nodeIterator = document.createTreeWalker(
+      range.commonAncestorContainer,
+      NodeFilter.SHOW_ALL,
+      {
+        acceptNode: function (node) {
+          // ignore if is header or footer
+          if (node.className && node.className.contains('page')) return NodeFilter.FILTER_REJECT;
+          // jump into page content
+          if (node.className && node.className.contains('preventdelete')) return NodeFilter.FILTER_SKIP;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+    );
+    // initialize variables for node removals
+    var _nodeList = [];
+    while (_nodeIterator.nextNode()) {
+      if (_nodeList.length === 0 && _nodeIterator.currentNode !== range.startContainer) continue;
+      _nodeList.push(_nodeIterator.currentNode);
+      if (_nodeIterator.currentNode === range.endContainer) break;
+    }
+
+    // remove first and last nodeIt using offset
+    var _firstNode = _nodeList.shift();
+    _firstNode.textContent = getInnerText(_firstNode).substr(0, range.startOffset);
+    var _lastNode = _nodeList.pop();
+    if (range.endOffset < getTextLength(range.endContainer)) {
+      _lastNode.textContent = (getTextLength(_lastNode) > 0 && getInnerText(_lastNode).substr(range.endOffset)) || '';
+      // merge first and last
+      _firstNode.textContent += getInnerText(_lastNode);
+    }
+    _lastNode.remove();
+
+    // clean list
+    _nodeList.forEach(function(node){
+      try { node.remove(); } catch (e) {}
+    });
+
+    // append BR in case nothing left
+    if (_firstNode.nodeType === 3) _firstNode = _firstNode.parentNode;
+    if (_firstNode.children.length === 0) _firstNode.appendChild(document.createElement('br'));
+
+    // sets the cursor to the middle of mixed texts
+    setCursor(_firstNode, true);
+
+    /* Check paginator status */
+    paginator.watchPage();
+    if (pd) editor.save();
+    return;
+  }
+
+  /**
+   * Mannually sanitizes editor. Deals with caret selections.
+   * @param {number} direction 1 for upwards (↑), 2 for downwards (↓)
+   * @param {boolean} removing true for deleting (backspace/delete), false for arrowkeys
+   * @param {boolean} walking true if cursor is walikng right (→) or left (←)
+   * @param {object} n_sel object replacing Selection
+   * @method
+   * @ignore
+   * @return {undefined}
+   */
+  function sanitizeWithoutRange(direction, removing, walking, n_sel) {
+    if (direction < 0) return;
+
+    var _siblingPage, _pageContent, _isPageBoundary, __sel = n_sel || sel,
+      _pd = false, _normalizedNode = (function _NN(_node){ 
+        if (_node.parentNode.className && _node.parentNode.className.contains('preventdelete')) return _node;
+        return _NN(_node.parentNode);
+      })(__sel.anchorNode), _isBlockBoundary = isBlockBoundary(_normalizedNode, __sel, direction === 1);
+
+    // 0) check if we are in the page boundary
+    // if the direction is upwards (↑)
+    if (direction === 1) _isPageBoundary = isPageBoundary(_normalizedNode.previousElementSibling);
+    // or the direction is donwards (↓)
+    else if (direction === 2) _isPageBoundary = isPageBoundary(_normalizedNode.nextElementSibling);
+
+    // if not on page boundary, 
+    if (!_isPageBoundary) {
+      // and I'm removing: let it be
+      if (removing) return _preventDelete(false);
+      // and I'm walking
+      if (walking) {
+        // and I'm going upwards and cursor is in position 0
+        // move cursor to previous element
+        if (direction === 1 && _isBlockBoundary) {
+          setCursor(_normalizedNode.previousElementSibling, true);
+          _pd = true;
+          // and I'm going downwards and cursor is in position length-1
+          // move cursor to next element
+        } else if (direction === 2 && _isBlockBoundary) {
+          setCursor(_normalizedNode.nextElementSibling, false);
+          _pd = true;
+        }
+      }
+      // nothing to do at all
+      paginator.updateScrollPosition(true);
+      return _preventDelete(_pd);
+    }
+
+    // 1) get the sibling upwards or donwards page
+    // if the direction is upwards (↑)
+    if (direction === 1) _siblingPage = page.previousElementSibling;
+    // or the direction is donwards (↓)
+    else if (direction === 2) _siblingPage = page.nextElementSibling;
+
+    // if there'snt siblingPage
+    if (!_siblingPage) {
+      _pageContent = getPageContent(page);
+      if (direction === 1) {
+        // and I'm in the first element of the page
+        // nothing to do, only prevent default action
+        if (_pageContent[0] === _normalizedNode) {
+          if (_isBlockBoundary) {
+            setCursor(_normalizedNode, false);
+            return _preventDelete(true);
+          }
+        }
+      } else if (direction === 2) {
+        // and I'm in the last element of the page
+        if (_pageContent[_pageContent.length - 1] === _normalizedNode) {
+          // and I'm not in the last lines offset
+          if (_isBlockBoundary) {
+            setCursor(_normalizedNode, true);
+            return _preventDelete(true);
+          }
+        }
+      }
+      return _preventDelete(false);
+    }
+    var _siblingPageContent = getPageContent(_siblingPage);
+
+    // 2) select the pageContent content using parameters
+    // if is removing
+    if (removing) {
+      _pageContent = getPageContent(page);
+      // and the direction is upwards (↑),
+      // I need the content of the current page
+      if (direction === 1) {
+        if (_isBlockBoundary) {
+          // and there's only a child within page content
+          // remove P from escaping page
+          if (_pageContent[0] === _normalizedNode) {
+            _siblingPageContent[_siblingPageContent.length - 1].innerHTML += _pageContent[0].innerHTML;
+            _pageContent[0].remove();
+            setCursor(_siblingPageContent[_siblingPageContent.length - 1], true);
+            paginator.watchPage();
+            return _preventDelete(true);
+          }
+        }
+      } else
+        // and the direction is donwards (↓),
+        // I need the content of the sibling page
+        if (direction === 2) {
+          if (_isBlockBoundary) {
+            // and there's only a child within page content
+            // remove P from escaping page
+            if (_pageContent[_pageContent.length - 1] === _normalizedNode) {
+              _pageContent[_pageContent.length - 1].innerHTML += _siblingPageContent[0].innerHTML;
+              _siblingPageContent[0].remove();
+              setCursor(_pageContent[_pageContent.length - 1], true);
+              paginator.watchPage();
+              return _preventDelete(true);
+            }
+          }
+        }
+
+      return _preventDelete(false);
+    }
+
+    // 3) if isn't removing, I need to walk the cursor
+    // but if I'm walking sideways
+    // I'll walk only if hit the end or beginning
+    if (walking) {
+      _pageContent = getPageContent(page);
+      // if I'm going left and I'm in the offset 0
+      if (direction === 1 && _isBlockBoundary) {
+        // sets the cursor to the ending of the last node of siblingPage
+        setCursor(_siblingPageContent[_siblingPageContent.length - 1], true);
+        _pd = true;
+      }
+      // if I'm going right and I'm in the offset is equal to the element text length
+      if (direction === 2 && _isBlockBoundary) {
+        // sets the cursor to the beginning of the first node of siblingPage
+        setCursor(_siblingPageContent[0], false);
+        _pd = true;
+      }
+      // just walk
+      paginator.updateScrollPosition(true);
+      return _preventDelete(_pd);
+    }
+    // If I'm walking perpendicular
+    // and going upwards (↑) or downwards (↓)
+    // Evaluate the offsetTop from the cursor
+    if (!isBoundaryLine(direction, sel, _normalizedNode)) {
+      return _preventDelete(false);
+    }
+
+    if (direction === 1) {
+      // sets the cursor to the ending of the last node of siblingPage
+      setCursor(_siblingPageContent[_siblingPageContent.length - 1], true);
+    }
+    // and going downwards (↓)
+    if (direction === 2) {
+      // sets the cursor to the beginning of the first node of siblingPage
+      setCursor(_siblingPageContent[0], false);
+    }
+    // just walk
+    paginator.updateScrollPosition(true);
+    return _preventDelete(true);
+  }
+
   /**
    * Check Prevent Delete
    * ADAPTED FROM: https://stackoverflow.com/questions/29491324/how-to-prevent-delete-of-a-div-in-tinymce-editor
    * @function
    * @private
-   * @param {event} evt - Javascript event
+   * @param {event} e - Javascript event
    * @returns void
    */
-  function checkPreventDelete(evt) {
-    /* Checks the container height */
-    function _isEmpty(innerHTML) {
-      return (innerHTML.replace(/\r?\n|\r/igm, '').length === 0);
-    }
+  function checkPreventDelete(e) {
 
-    function _getInnerText(el) {
-      return el.textContent.replace(/\r?\n|\r/igm, '');
-    }
-
-    function _isPageEmpty(page) {
-      return _getPageContent(page).length === 0;
-    }
-
-    function _getPageContent(page) {
-      return $(page).children(':not(.pageFooter):not(.pageHeader):not(.pageAddData)');
-    }
-
-    function _setCursor(elem, offset) {
-      if (elem.childNodes && elem.childNodes.length > 0) {
-        if (elem.childNodes[0].nodeType === 3) 
-          return editor.selection.setCursorLocation(elem.childNodes[0], offset);
-        return _setCursor(elem.childNodes[0], offset);
-      }
-      return editor.selection.setCursorLocation(elem, offset);
-    }
-
-    var _node = editor.selection.getNode(),
-      _page = (_node.nodeName !== 'BODY') ? $(_node).closest('div[data-paginator="true"]')[0] : $(_node.firstChild),
-      _sel = editor.selection.getSel(),
-      _range = _sel.type === 'Range' ? editor.selection.getRng() : null;
-
-    /**
-     * Mannually sanitizes editor. Deals with ranged selections.
-     * @param {boolean} pd prevent default action
-     * @param {boolean} removing true for deleting (backspace/delete), false for arrowkeys
-     * @param {boolean} walking true if cursor is walikng right (→) or left (←)
-     * @param {number} direction 1 for upwards (↑), 2 for downwards (↓)
-     * @method
-     * @ignore
-     * @return {undefined}
-     */
-    function _sanitizeWithRange(pd, removing, walking, direction) {
-
-      // If not removing, there's no need to sanitize the range
-      if (!removing) {
-        return _sanitizeWithoutRange(direction, removing, walking);
-      }
-      
-      // Remove only allowed Nodes in this range selection
-      if (_sel.type !== 'Range' && !editor.plugins.paginate.isEmpty() && _node.nodeName !== 'BODY') return;
-      if (!_range) return;
-      
-      // if selection is text, only returns
-      if (_range.commonAncestorContainer.nodeType === 3) return;
-      
-      // prevent default action
-      if (pd) {
-        evt.preventDefault();
-        evt.stopPropagation();
-      }
-
-      if (_range.startContainer === _range.endContainer && _range.startOffset === _range.endOffset) return;
-      
-      /* Proceed with delete and remove node if range is empty */
-      // Select all nodes inside this selection
-      var _nodeIterator = document.createTreeWalker(
-        _range.commonAncestorContainer,
-        NodeFilter.SHOW_ALL,
-        {
-          acceptNode: function (node) {
-            // ignore if is header or footer
-            if (node.className && node.className.contains('page')) return NodeFilter.FILTER_REJECT;
-            // jump into page content
-            if (node.className && node.className.contains('preventdelete')) return NodeFilter.FILTER_SKIP;
-            return NodeFilter.FILTER_ACCEPT;
-          }
-        }
-      );
-      // initialize variables for node removals
-      var _nodeList = [];
-      while (_nodeIterator.nextNode()) {
-        if (_nodeList.length === 0 && _nodeIterator.currentNode !== _range.startContainer) continue;
-        _nodeList.push(_nodeIterator.currentNode);
-        if (_nodeIterator.currentNode === _range.endContainer) break;
-      }
-
-      // remove first and last nodeIt using offset
-      var _firstNode = _nodeList.shift();
-      _firstNode.textContent = _getInnerText(_firstNode).substr(0, _range.startOffset);
-      var _firstOffset = _getInnerText(_firstNode).length;
-      var _lastNode = _nodeList.pop();
-      if (_range.endOffset < _getInnerText(_range.endContainer).length) {
-        _lastNode.textContent = (_getInnerText(_lastNode).length > 0 && _getInnerText(_lastNode).substr(_range.endOffset)) || '';
-        // merge first and last
-        _firstNode.textContent += _getInnerText(_lastNode);
-      }
-      _lastNode.remove();
-
-      // clean list
-      _nodeList.forEach(function(node){
-        try { node.remove(); } catch (e) {}
-      });
-
-      // append BR in case nothing left
-      if (_firstNode.nodeType === 3) _firstNode = _firstNode.parentNode;
-      if (_firstNode.children.length === 0) _firstNode.appendChild(document.createElement('br'));
-
-      // sets the cursor to the middle of mixed texts
-      _setCursor(_firstNode, _firstOffset);
-
-      /* Check paginator status */
-      paginator.watchPage();
-      if (pd) editor.save();
-      return;
-    }
-
-    /**
-     * Mannually sanitizes editor. Deals with caret selections.
-     * @param {number} direction 1 for upwards (↑), 2 for downwards (↓)
-     * @param {boolean} removing true for deleting (backspace/delete), false for arrowkeys
-     * @param {boolean} walking true if cursor is walikng right (→) or left (←)
-     * @method
-     * @ignore
-     * @return {undefined}
-     */
-    function _sanitizeWithoutRange(direction, removing, walking) {
-      if (direction < 0) return;
-
-      // check if cursor is in a boundary element of the page
-      function _isInBoundary(nodeSibling) {
-        if (nodeSibling) return nodeSibling.className.contains('page') ? true : false;
-        return true;
-      }
-
-      // stop default actions
-      function _preventDelete(pd) {
-        if (!pd) return;
-        evt.preventDefault();
-        evt.stopPropagation();
-      }
-
-      var _siblingPage, _pageContent, _isBoundary,
-        _pd = false, _normalizedNode = (function _NN(_node){ 
-          if (_node.parentNode.className && _node.parentNode.className.contains('preventdelete')) return _node;
-          return _NN(_node.parentNode);
-        })(_sel.anchorNode);
-
-      // 0) check if we are in the page boundary
-      // if the direction is upwards (↑)
-      if (direction === 1) _isBoundary = _isInBoundary(_normalizedNode.previousElementSibling);
-      // or the direction is donwards (↓)
-      else if (direction === 2) _isBoundary = _isInBoundary(_normalizedNode.nextElementSibling);
-
-      // if not on page boundary, 
-      if (!_isBoundary) {
-        // and I'm removing: let it be
-        if (removing) return _preventDelete(false);
-        // and I'm walking
-        if (walking) {
-          // and I'm going upwards and cursor is in position 0
-          // move cursor to previous element
-          if (direction === 1 && _sel.anchorOffset === 0) {
-            var normalizedOffset = _getInnerText(_normalizedNode.previousElementSibling).length;
-            normalizedOffset = Math.max(normalizedOffset, 0);
-            _setCursor(_normalizedNode.previousElementSibling, normalizedOffset);
-            _pd = true;
-            // and I'm going downwards and cursor is in position length-1
-            // move cursor to next element
-          } else if (direction === 2 && _getInnerText(_normalizedNode).length === _sel.anchorOffset) {
-            _setCursor(_normalizedNode.nextElementSibling, 0);
-            _pd = true;
-          }
-        }
-        // nothing to do at all
-        paginator.updateScrollPosition(true);
-        return _preventDelete(_pd);
-      }
-
-      // 1) get the sibling upwards or donwards page
-      // if the direction is upwards (↑)
-      if (direction === 1) _siblingPage = _page.previousElementSibling;
-      // or the direction is donwards (↓)
-      else if (direction === 2) _siblingPage = _page.nextElementSibling;
-
-      // if there'snt siblingPage
-      if (!_siblingPage) {
-        _pageContent = _getPageContent(_page);
-        if (direction === 1) {
-          // and I'm in the first element of the page
-          // nothing to do, only prevent default action
-          if (_pageContent[0] === _normalizedNode) {
-            if (_sel.focusOffset !== 0) {
-              _setCursor(_normalizedNode, 0);
-            }
-            return _preventDelete(true);
-          }
-        } else if (direction === 2) {
-          // and I'm in the last element of the page
-          if (_pageContent[_pageContent.length - 1] === _normalizedNode) {
-            // and I'm not in the last lines offset
-            if (_getInnerText(_pageContent[_pageContent.length - 1]).length === _sel.anchorOffset) {
-              var _normalizedOffset = _getInnerText(_normalizedNode).length;
-              _normalizedOffset = Math.max(_normalizedOffset, 0);
-              _setCursor(_normalizedNode, _normalizedOffset);
-              return _preventDelete(true);
-            }
-          }
-        }
-        return _preventDelete(false);
-      }
-      var _siblingPageContent = _getPageContent(_siblingPage);
-
-      // 2) select the pageContent content using parameters
-      // if is removing
-      if (removing) {
-        _pageContent = _getPageContent(_page);
-        // and the direction is upwards (↑),
-        // I need the content of the current page
-        if (direction === 1) {
-          if (_sel.focusOffset === 0) {
-            // and there's only a child within page content
-            // remove P from escaping page
-            if (_pageContent[0] === _normalizedNode) {
-              _siblingPageContent[_siblingPageContent.length - 1].textContent += _getInnerText(_pageContent[0]);
-              _pageContent[0].remove();
-              _setCursor(_siblingPageContent[_siblingPageContent.length - 1], _getInnerText(_siblingPageContent[_siblingPageContent.length - 1]).length);
-              paginator.watchPage();
-              return _preventDelete(true);
-            }
-          }
-        } else
-          // and the direction is donwards (↓),
-          // I need the content of the sibling page
-          if (direction === 2) {
-            if (_getInnerText(_normalizedNode).length === _sel.anchorOffset) {
-              // and there's only a child within page content
-              // remove P from escaping page
-              if (_pageContent[_pageContent.length - 1] === _normalizedNode) {
-                _pageContent[_pageContent.length - 1].textContent += _getInnerText(_siblingPageContent[0]);
-                _siblingPageContent[0].remove();
-                _setCursor(_pageContent[_pageContent.length - 1], _getInnerText(_pageContent[_pageContent.length - 1]).length);
-                paginator.watchPage();
-                return _preventDelete(true);
-              }
-            }
-          }
-
-        return _preventDelete(false);
-      }
-
-      // 3) if isn't removing, I need to walk the cursor
-      // but if I'm walking sideways
-      // I'll walk only if hit the end or beginning
-      if (walking) {
-        _pageContent = _getPageContent(_page);
-        // if I'm going left and I'm in the offset 0
-        if (direction === 1 && _sel.anchorOffset === 0) {
-          // sets the cursor to the ending of the last node of siblingPage
-          _setCursor(_siblingPageContent[_siblingPageContent.length - 1], _getInnerText(_siblingPageContent[_siblingPageContent.length - 1]).length);
-          _pd = true;
-        }
-        // if I'm going right and I'm in the offset is equal to the element text length
-        if (direction === 2 && _getInnerText(_normalizedNode).length === _sel.anchorOffset) {
-          // sets the cursor to the beginning of the first node of siblingPage
-          _setCursor(_siblingPageContent[0], 0);
-          _pd = true;
-        }
-        // just walk
-        paginator.updateScrollPosition(true);
-        return _preventDelete(_pd);
-      }
-      // If I'm walking perpendicular
-      // and going upwards (↑) or downwards (↓)
-      if (direction === 1) {
-        // sets the cursor to the ending of the last node of siblingPage
-        var __normalizedOffset = _getInnerText(_siblingPageContent[_siblingPageContent.length - 1]).length;
-        __normalizedOffset = Math.max(__normalizedOffset, 0);
-        _setCursor(_siblingPageContent[_siblingPageContent.length - 1], __normalizedOffset);
-      }
-      // and going downwards (↓)
-      if (direction === 2) {
-        // sets the cursor to the beginning of the first node of siblingPage
-        _setCursor(_siblingPageContent[0], 0);
-      }
-      // just walk
-      paginator.updateScrollPosition(true);
-      return _preventDelete(true);
-    }
+    node = editor.selection.getNode();
+    evt = e;
+    page = (node.nodeName !== 'BODY') ? $(node).closest('div[data-paginator="true"]')[0] : $(node.firstChild);
+    sel = editor.selection.getSel();
+    range = sel.type === 'Range' ? editor.selection.getRng() : null;
 
     /* If delete keys pressed */
     var direction = 0;
-    switch (evt.keyCode) {
+    switch (e.keyCode) {
       case 37: // arrow ←
       case 38: // arrow ↑ 
         direction = 1; // (↑)
@@ -445,22 +539,22 @@ function tinymcePluginPaginate(editor) {
         if (!direction) direction = 2; // (↓)
         // if range exists and there isn't Ctrl pressed 
         // prevent delete and backspace actions
-        if (!evt.ctrlKey || !evt.shiftKey) {
-          if (_range) _sanitizeWithRange(true,
-            evt.keyCode === 8 || evt.keyCode === 46, // is removing
-            evt.keyCode === 37 || evt.keyCode === 39, // walking sideways with cursor
+        if (!e.ctrlKey || !e.shiftKey) {
+          if (range) sanitizeWithRange(true,
+            e.keyCode === 8 || e.keyCode === 46, // is removing
+            e.keyCode === 37 || e.keyCode === 39, // walking sideways with cursor
             direction); 
-          else _sanitizeWithoutRange(direction,
-            evt.keyCode === 8 || evt.keyCode === 46, // is removing
-            evt.keyCode === 37 || evt.keyCode === 39); // walking sideways with cursor
+          else sanitizeWithoutRange(direction,
+            e.keyCode === 8 || e.keyCode === 46, // is removing
+            e.keyCode === 37 || e.keyCode === 39); // walking sideways with cursor
           break;
         }
         /* falls through */
       case 86: // V
-        //if (evt.ctrlKey) _sanitizeWithRange(false);
+        //if (evt.ctrlKey) sanitizeWithRange(false);
         break;
       case 88: // X
-        if (evt.ctrlKey) _sanitizeWithRange(true);
+        if (e.ctrlKey) sanitizeWithRange(true);
         break;
       case 27: // esc
         if (editor.plugins.fullscreen.isFullscreen())
@@ -472,15 +566,15 @@ function tinymcePluginPaginate(editor) {
         }, 0);
         /* falls through */
       default:
-        if (!evt.ctrlKey || !evt.shiftKey) {
+        if (!e.ctrlKey || !e.shiftKey) {
           var valid =
-            (evt.keyCode > 47 && evt.keyCode < 58) || // number keys
-            evt.keyCode == 32 || evt.keyCode == 13 || // spacebar & return key(s) (if you want to allow carriage returns)
-            (evt.keyCode > 64 && evt.keyCode < 91) || // letter keys
-            (evt.keyCode > 95 && evt.keyCode < 112) || // numpad keys
-            (evt.keyCode > 185 && evt.keyCode < 193) || // ;=,-./` (in order)
-            (evt.keyCode > 218 && evt.keyCode < 223); // [\]' (in order)
-          if (valid) _sanitizeWithRange(false);
+            (e.keyCode > 47 && e.keyCode < 58) || // number keys
+            e.keyCode == 32 || e.keyCode == 13 || // spacebar & return key(s) (if you want to allow carriage returns)
+            (e.keyCode > 64 && e.keyCode < 91) || // letter keys
+            (e.keyCode > 95 && e.keyCode < 112) || // numpad keys
+            (e.keyCode > 185 && e.keyCode < 193) || // ;=,-./` (in order)
+            (e.keyCode > 218 && e.keyCode < 223); // [\]' (in order)
+          if (valid) sanitizeWithRange(false);
         }
     }
   }
